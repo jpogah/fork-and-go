@@ -1,0 +1,23 @@
+.DS_Store
+__pycache__/
+.pytest_cache/
+.venv/
+node_modules/
+.next/
+.next-e2e/
+dist/
+coverage/
+*.tsbuildinfo
+.task-runs/
+.playwright-mcp/
+playwright-report/
+test-results/
+next-env.d.ts
+
+# Never commit secrets. Templates (.env.example) are the only allowed entries.
+.env
+.env.*
+!.env.example
+
+# Local UAT screenshots captured during manual verification.
+/uat-*.png

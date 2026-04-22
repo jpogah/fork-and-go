@@ -1,0 +1,20 @@
+{
+  "name": "@fork-and-go/orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "start": "node --experimental-strip-types src/index.ts",
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@fork-and-go/plan-graph": "*",
+    "@fork-and-go/release-gate": "*",
+    "@fork-and-go/run-budget": "*",
+    "yaml": "*"
+  },
+  "devDependencies": {
+    "typescript": "*"
+  }
+}

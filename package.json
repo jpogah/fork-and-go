@@ -1,0 +1,24 @@
+{
+  "name": "fork-and-go",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent-first delivery pipelines that ship while you're asleep.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "plan-graph": "./scripts/plan-graph.sh"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
