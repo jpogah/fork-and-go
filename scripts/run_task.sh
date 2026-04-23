@@ -952,6 +952,32 @@ run_e2e_verify_phase() {
     return 0
   fi
 
+  # Graceful-fail contract: e2e-verify requires a top-level `npm run e2e`
+  # script that runs a browser test suite. Missing this is a scaffold-
+  # level gap, not a plan-level bug — fail fast with an actionable
+  # pointer instead of letting the raw `npm error Missing script: "e2e"`
+  # look like a test failure to the operator and the merge-checker.
+  if ! ( cd "$ROOT" && npm run --silent --if-present e2e >/dev/null 2>&1 ); then
+    if ! ( cd "$ROOT" && npm pkg get scripts.e2e 2>/dev/null | grep -q -v '^{}$' ); then
+      {
+        echo "E2E verification failed."
+        echo ""
+        echo "Scaffold gap: no \`e2e\` script in package.json."
+        echo ""
+        echo "The e2e-verify phase expects \`npm run e2e\` to run a browser test"
+        echo "suite (typically Playwright). This is a project-shaped scaffold"
+        echo "requirement, not a plan-level concern — see CUSTOMIZE.md in the"
+        echo "Fork-and-Go harness docs for the minimal setup, or run"
+        echo "\`./scripts/bootstrap-e2e.sh\` if the harness provides it."
+        echo ""
+        echo "To opt a specific non-UI-touching plan out of e2e-verify, invoke"
+        echo "with --skip-e2e."
+      } >"$summary_file"
+      note "E2E verification failed — missing \`npm run e2e\` script; see $summary_file"
+      return 1
+    fi
+  fi
+
   note "Running e2e-verify phase (npm run e2e); log: $log_file"
   local exit_code=0
   ( cd "$ROOT" && npm run e2e ) >"$log_file" 2>&1 || exit_code=$?

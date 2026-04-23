@@ -1,12 +1,28 @@
 # Customize for your fork
 
-Fork-and-Go is a harness, not a template you can use unmodified. The runner, prompts, and conventions transfer; a few scripts and one package are project-shaped and need to be tuned for your stack.
+Fork-and-Go is a harness, not a template you can use unmodified. The runner, prompts, and conventions transfer; a few scripts, one package, and one scaffold are project-shaped and need to be tuned for your stack.
 
 This doc lists what to review before your first `./scripts/run_task.sh` run.
 
 ---
 
 ## Required
+
+### E2E test infrastructure (for any fork shipping UI or a web service)
+
+The harness's `e2e-verify` phase runs `npm run e2e` at the repo root and expects a working browser-automation test suite. If your fork will ship any UI-touching plan, this infrastructure **must** be wired before the first plan runs — otherwise the first plan's e2e-verify phase fails with `Missing script: "e2e"` (recent versions of `run_task.sh` surface this as an actionable scaffold-gap error pointing back at this doc).
+
+The upstream harness assumes Playwright + a dedicated dev server on port 3100. If you want the canonical setup, run the bootstrap script shipped with this harness:
+
+```bash
+./scripts/bootstrap-e2e.sh
+```
+
+That script installs `@playwright/test` + chromium, writes `apps/web/playwright.config.ts`, lays down a heavy-smoke test suite at `apps/web/tests/e2e/smoke.spec.ts`, wires `e2e` + `e2e:install` scripts into both `apps/web/package.json` and the workspace root, and runs the suite once to verify. Idempotent — safe to re-run.
+
+If your fork uses a different browser-automation framework (Cypress, Puppeteer, WebDriver), the contract is the same: `npm run e2e` must exit 0 when the product's acceptance criteria render correctly in a real browser, non-zero otherwise. The harness's e2e-verify phase captures the Playwright-style `playwright-report/` directory by convention; if you use a different framework, either keep that directory name for artifact capture or patch `scripts/run_task.sh` to look at your framework's report path.
+
+For CLI-only or pure-library forks that never ship a UI, the right move is to skip e2e-verify per-plan via `--skip-e2e` in `run_task.sh`, and to tag the plan's frontmatter as `phase: "Harness"` (or similar non-UI phase). The e2e-verify gate is only enforced when a plan opts in.
 
 ### `scripts/preflight.sh`
 
