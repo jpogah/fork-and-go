@@ -10,6 +10,22 @@ if [[ -z "$PR_NUMBER" ]]; then
   PR_NUMBER="$(gh pr view --json number --jq '.number')"
 fi
 
+# Tolerate already-merged PRs. Both the local merge-check phase and the
+# remote Agent Auto-Merge workflow call this script; whichever wins
+# the race to `gh pr merge` succeeds, the loser sees state=MERGED and
+# would otherwise try to merge again and fail with "Merge already in
+# progress (mergePullRequest)". Exit 0 on MERGED so the caller's run
+# is not poisoned by a benign race.
+STATE="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
+if [[ "$STATE" == "MERGED" ]]; then
+  echo "PR #$PR_NUMBER is already merged."
+  exit 0
+fi
+if [[ "$STATE" == "CLOSED" ]]; then
+  echo "PR #$PR_NUMBER is closed (not merged); refusing to auto-merge."
+  exit 1
+fi
+
 IS_DRAFT="$(gh pr view "$PR_NUMBER" --json isDraft --jq '.isDraft')"
 if [[ "$IS_DRAFT" == "true" ]]; then
   echo "PR #$PR_NUMBER is still a draft."

@@ -743,22 +743,84 @@ run_fix_phase() {
 }
 
 run_review_fix_loop() {
+  # Review/fix loop with an e2e gate folded in. Static code review runs
+  # first each pass; if it flags issues, those are fed to the fix phase
+  # without wasting a ~3min e2e run. Only once static review is clean
+  # does the loop gate on e2e-verify (browser + Playwright). E2E
+  # failures are synthesized as a review-style findings file and
+  # passed to the next fix pass — the agent gets to self-correct
+  # browser/hydration issues instead of dying at a post-loop gate.
+  #
+  # Motivation: Scrawl 0004's `SelectionActions.tsx` rendered `⌘` on
+  # client + `Ctrl` on server (navigator.platform during render), which
+  # React reports as a hydration error. Static review couldn't see this
+  # — only the browser could. Pre-loop e2e would have let the fix pass
+  # address it autonomously; the old post-loop gate required human
+  # intervention. E2E runs against the local dev server on the working
+  # tree, so it's the same artifact the PR will ship — running it
+  # earlier in the loop is equivalent, just cheaper in the human-
+  # intervention dimension.
   local pass=1
   while (( pass <= MAX_REVIEW_PASSES )); do
     note "Review pass $pass of $MAX_REVIEW_PASSES"
     run_review_phase
 
-    if review_is_clean "$RUN_DIR/review.out.md"; then
-      note "No review findings remain."
+    local findings_file="$RUN_DIR/findings-pass-${pass}.md"
+    : > "$findings_file"
+
+    if ! review_is_clean "$RUN_DIR/review.out.md"; then
+      # Static findings first — fix those before paying for e2e.
+      cat "$RUN_DIR/review.out.md" >> "$findings_file"
+      if (( pass == MAX_REVIEW_PASSES )); then
+        note "Review findings remain after $MAX_REVIEW_PASSES passes."
+        return 1
+      fi
+      run_fix_phase "$findings_file"
+      ((pass++))
+      continue
+    fi
+
+    # Static review clean — now gate on e2e-verify (unless opted out).
+    if (( SKIP_E2E == 1 )); then
+      note "Review clean + --skip-e2e set; loop converged."
       return 0
     fi
 
+    if run_e2e_verify_phase; then
+      note "Review clean + e2e clean; loop converged."
+      return 0
+    fi
+
+    # E2E failed — synthesize findings for the next fix pass. The fix
+    # phase prompt treats this as a normal review finding it must
+    # address; the agent re-reads the codebase with the e2e failure
+    # context in hand and patches the bug.
+    {
+      echo "## E2E Verification Findings (pass $pass)"
+      echo ""
+      echo "Playwright smoke + plan-specific tests failed. The harness"
+      echo "is gating on \`npm run e2e\` in review pass $pass because the"
+      echo "app has static-clean code but a real browser regression."
+      echo "See \`${RUN_DIR#$ROOT/}/e2e-verify.out.md\` for the failing"
+      echo "test output (including hydration mismatches, console"
+      echo "errors, selector timeouts, snapshot diffs)."
+      echo ""
+      echo "Treat every failing test as Medium or higher severity and"
+      echo "address it in this fix pass. Hydration mismatches, client-"
+      echo "only APIs called during render, and platform-detected UI"
+      echo "strings are the usual suspects."
+      echo ""
+      echo "--- e2e-verify.out.md ---"
+      echo ""
+      cat "$RUN_DIR/e2e-verify.out.md"
+    } >> "$findings_file"
+
     if (( pass == MAX_REVIEW_PASSES )); then
-      note "Review findings remain after $MAX_REVIEW_PASSES passes."
+      note "E2E findings remain after $MAX_REVIEW_PASSES passes."
       return 1
     fi
 
-    run_fix_phase "$RUN_DIR/review.out.md"
+    run_fix_phase "$findings_file"
     ((pass++))
   done
 
@@ -1102,6 +1164,21 @@ run_merge_check_phase() {
 
 if [[ "$PHASE" == "all" || "$PHASE" == "implement" || "$PHASE" == "prepare-pr" || "$PHASE" == "merge-check" ]]; then
   ensure_task_branch
+
+  # Early-exit when the branch's PR has already been merged. Prevents
+  # a no-op re-run from creating a second PR for already-shipped work
+  # (happens when run_task.sh exits non-zero due to a benign race with
+  # the Agent Auto-Merge workflow, the daemon blocks the plan, and the
+  # operator unblocks to retry). Exits 0 so the daemon's merge check
+  # sees MERGED state and calls handleSuccess.
+  if [[ "$LOCAL_ONLY" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
+    if existing_pr_state="$(gh pr view --json state --jq '.state' 2>/dev/null)"; then
+      if [[ "$existing_pr_state" == "MERGED" ]]; then
+        note "PR for $TASK_BRANCH is already merged; nothing to do."
+        exit 0
+      fi
+    fi
+  fi
 fi
 
 case "$PHASE" in
@@ -1136,8 +1213,12 @@ case "$PHASE" in
     ;;
   all)
     run_implementation_phase
+    # review_fix_loop now gates on e2e internally, so a post-loop
+    # e2e run here would be redundant. merge-check still re-runs
+    # e2e-verify against the same working tree as a final witness
+    # for the merge-readiness review, which is intentional.
     if ! run_review_fix_loop; then
-      die "Review loop did not converge. Inspect $RUN_DIR/review.out.md"
+      die "Review loop did not converge. Inspect $RUN_DIR/review.out.md and the latest $RUN_DIR/findings-pass-*.md"
     fi
     run_local_preflight
     if ! has_uncommitted_changes && ! has_diff_against_base; then
@@ -1146,13 +1227,6 @@ case "$PHASE" in
     prepare_pr_body
     commit_if_needed
     ensure_pull_request
-    if (( SKIP_E2E == 1 )); then
-      note "--skip-e2e set; skipping e2e-verify phase (opt-in for non-UI-touching plans)."
-    else
-      if ! run_e2e_verify_phase; then
-        die "E2E verification failed. Inspect $RUN_DIR/e2e-verify.out.md. Refusing to label the PR for auto-merge."
-      fi
-    fi
     run_merge_check_phase
     ;;
 esac
