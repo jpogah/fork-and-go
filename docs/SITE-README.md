@@ -1,12 +1,13 @@
 # Landing page — `jpogah.github.io/fork-and-go`
 
-Static one-page landing site for Fork-and-Go. Served via GitHub Pages from this folder on `main`.
+Static one-page landing site for Fork-and-Go. Served via GitHub Pages from `main:/docs` — the `/docs` path is used rather than `/site` because GitHub Pages' built-in source selector only accepts `/` or `/docs`. The rest of the `/docs` tree (harness-engineering notes, prompts, product specs, workflows) coexists here but is not linked from the landing page.
 
 ## Files
 
 - **`index.html`** — the page. Plain HTML + Tailwind CDN, no build step.
-- **`.nojekyll`** — disables Jekyll so Pages serves the HTML verbatim.
+- **`.nojekyll`** — disables Jekyll so Pages serves the HTML verbatim (and leaves the other `/docs` markdown content untouched).
 - **`images/book-cover.png`** — hero cover used in the book section and Open Graph preview.
+- **`SITE-README.md`** — this file.
 
 ## Editing
 
@@ -20,7 +21,7 @@ GitHub Pages must be configured once to serve from this folder:
 
 1. Repo **Settings → Pages**
 2. **Source**: Deploy from a branch
-3. **Branch**: `main`, folder `/site`
+3. **Branch**: `main`, folder `/docs`
 4. Save
 
 After the first deploy, the site is at `https://jpogah.github.io/fork-and-go/`.
