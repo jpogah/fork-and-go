@@ -978,6 +978,14 @@ ensure_automerge_label() {
 wait_for_pr_checks() {
   local pr_number="$1"
   local max_wait="${MERGE_CHECK_WAIT_SECONDS:-900}"
+  # Minimum wait before we can conclude "no CI configured". After a
+  # `git push` GitHub can take up to ~30s to register new workflow
+  # runs — during that window `statusCheckRollup` is empty, which the
+  # all-zero branch below would otherwise misread as "no CI", letting
+  # merge-check run against checks that are about to start. Observed
+  # blocking plans 0004, 0005, 0006 repeatedly. Wait at least this
+  # long before trusting an empty rollup.
+  local min_wait_before_empty="${MERGE_CHECK_MIN_WAIT_SECONDS:-60}"
   local interval=10
   local waited=0
   local failed pending successful
@@ -1022,8 +1030,15 @@ wait_for_pr_checks() {
       return 0
     fi
     if (( pending == 0 )) && (( successful == 0 )); then
-      note "No CI checks found on PR #${pr_number}; proceeding to review"
-      return 0
+      # Treat "all zero" as "no CI configured" ONLY after the minimum
+      # wait, so a freshly-pushed PR whose workflows are still being
+      # queued doesn't short-circuit into merge-check too early.
+      if (( waited >= min_wait_before_empty )); then
+        note "No CI checks found on PR #${pr_number} after ${waited}s; proceeding to review"
+        return 0
+      fi
+      # Otherwise fall through and keep polling — GitHub is likely
+      # still registering the workflow runs for this push.
     fi
 
     sleep "$interval"
@@ -1162,15 +1177,19 @@ run_merge_check_phase() {
   fi
 }
 
-if [[ "$PHASE" == "all" || "$PHASE" == "implement" || "$PHASE" == "prepare-pr" || "$PHASE" == "merge-check" ]]; then
+if [[ "$PHASE" == "all" || "$PHASE" == "implement" || "$PHASE" == "prepare-pr" || "$PHASE" == "merge-check" || "$PHASE" == "fix" || "$PHASE" == "review" || "$PHASE" == "review-ui" || "$PHASE" == "e2e-verify" ]]; then
   ensure_task_branch
 
   # Early-exit when the branch's PR has already been merged. Prevents
   # a no-op re-run from creating a second PR for already-shipped work
   # (happens when run_task.sh exits non-zero due to a benign race with
   # the Agent Auto-Merge workflow, the daemon blocks the plan, and the
-  # operator unblocks to retry). Exits 0 so the daemon's merge check
-  # sees MERGED state and calls handleSuccess.
+  # operator unblocks to retry). Covers every phase invocation —
+  # run_task_loop.sh calls `--phase fix` first, so gating only on
+  # `all`/`implement`/`prepare-pr`/`merge-check` leaves the resume
+  # path broken.
+  # Exits 0 so the daemon's merge check sees MERGED state and calls
+  # handleSuccess, migrating the plan file to completed/.
   if [[ "$LOCAL_ONLY" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
     if existing_pr_state="$(gh pr view --json state --jq '.state' 2>/dev/null)"; then
       if [[ "$existing_pr_state" == "MERGED" ]]; then
