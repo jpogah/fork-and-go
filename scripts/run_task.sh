@@ -868,9 +868,18 @@ ensure_pull_request() {
     pr_state="$(gh pr view --json state --jq '.state')"
     case "$pr_state" in
       CLOSED)
+        # Try to reopen the closed PR so its number + history persist.
+        # GitHub refuses reopening when the original head commit no longer
+        # exists (common when the branch was deleted and recreated) with
+        # "GraphQL: Could not open the pull request". Fall back to a fresh
+        # PR in that case — a new PR number is better than a stuck run.
         note "Reopening closed PR #$pr_number"
-        gh pr reopen "$pr_number"
-        gh pr edit "$pr_number" --title "$PR_TITLE" --body-file "$pr_body_file"
+        if gh pr reopen "$pr_number" 2>/dev/null; then
+          gh pr edit "$pr_number" --title "$PR_TITLE" --body-file "$pr_body_file"
+        else
+          note "Reopen of PR #$pr_number refused (branch likely recreated); creating new PR"
+          gh pr create --base "$BASE_BRANCH" --head "$current_branch" --title "$PR_TITLE" --body-file "$pr_body_file"
+        fi
         ;;
       MERGED)
         # Anomalous: PR merged but branch still exists with new commits.

@@ -19,5 +19,10 @@ next-env.d.ts
 .env.*
 !.env.example
 
-# Local UAT screenshots captured during manual verification.
-/uat-*.png
+# Local screenshots captured during manual verification or by agent
+# codegen (Playwright evaluation, debug captures). Root-level PNGs
+# are never source assets — anything that ships lives in public/ or
+# docs/assets/, not at the repo root. Applying the rule broadly
+# prevents stray debug artifacts from leaking into PRs and blocking
+# merge-check.
+/*.png
