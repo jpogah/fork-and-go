@@ -855,10 +855,34 @@ ensure_pull_request() {
 
   git push -u origin "$current_branch"
 
-  if gh pr view --json number >/dev/null 2>&1; then
+  # `gh pr view` on the current branch returns the latest PR regardless of
+  # state (open/closed/merged). A CLOSED PR cannot be advanced by `gh pr
+  # edit` — it looks like a no-op but leaves the harness stranded with a
+  # new head commit and no open PR. Closed most commonly because an earlier
+  # run deleted the branch (GitHub auto-closes the PR), and the current
+  # re-push recreated the branch with fresh work that deserves a PR.
+  # Reopen the existing PR so its number + history persist.
+  local pr_state
+  if gh pr view --json number,state >/dev/null 2>&1; then
     pr_number="$(gh pr view --json number --jq '.number')"
-    note "Updating existing PR #$pr_number"
-    gh pr edit "$pr_number" --title "$PR_TITLE" --body-file "$pr_body_file"
+    pr_state="$(gh pr view --json state --jq '.state')"
+    case "$pr_state" in
+      CLOSED)
+        note "Reopening closed PR #$pr_number"
+        gh pr reopen "$pr_number"
+        gh pr edit "$pr_number" --title "$PR_TITLE" --body-file "$pr_body_file"
+        ;;
+      MERGED)
+        # Anomalous: PR merged but branch still exists with new commits.
+        # Don't try to edit the merged PR — create a fresh one.
+        note "Prior PR #$pr_number already merged; creating new PR for $current_branch"
+        gh pr create --base "$BASE_BRANCH" --head "$current_branch" --title "$PR_TITLE" --body-file "$pr_body_file"
+        ;;
+      *)
+        note "Updating existing PR #$pr_number (state=$pr_state)"
+        gh pr edit "$pr_number" --title "$PR_TITLE" --body-file "$pr_body_file"
+        ;;
+    esac
   else
     note "Creating pull request for $current_branch"
     gh pr create --base "$BASE_BRANCH" --head "$current_branch" --title "$PR_TITLE" --body-file "$pr_body_file"
