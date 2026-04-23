@@ -759,7 +759,7 @@ describe("orchestrator daemon", () => {
     expect(daemon.getSnapshot().frozen).toBe(false);
   });
 
-  it("budget ceiling gates the next plan after a plan's tokens cross the threshold", async () => {
+  it("budget ceiling logs a warning but does not pause the daemon (CLI-auth mode)", async () => {
     const repo = scaffoldRepo();
     writePlan(repo.activeDir, "0001");
     writePlan(repo.activeDir, "0002", { dependsOn: ["0001"] });
@@ -820,11 +820,13 @@ describe("orchestrator daemon", () => {
     expect(snap.budget.tokensUsed).toBe(1000);
     expect(snap.budget.ceilingReached).toBe(true);
 
-    // Next tick must see the ceiling and pause without firing plan 0002.
+    // Next tick must log the ceiling event for observability, but
+    // continue running. CLI-auth workflows don't tie token count to
+    // marginal cost — budget is advisory, not a blocker. Use /freeze
+    // explicitly to pause on runaway spend.
     daemon.resume();
     await daemon.tickOnce();
-    expect(invokeCalls).toHaveLength(1);
-    expect(daemon.getSnapshot().state).toBe("paused");
+    expect(daemon.getSnapshot().state).not.toBe("paused");
     expect(
       daemon
         .getSnapshot()

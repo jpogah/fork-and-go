@@ -40,9 +40,11 @@ import {
 } from "./budget.ts";
 import { createControlServer, type ControlServer } from "./control-server.ts";
 import {
+  checkPRMergeState,
   commitAndPushMigration,
   returnToMain,
   type GitSyncResult,
+  type PRMergeState,
 } from "./git-sync.ts";
 import { createStdoutLogger, type Logger } from "./logger.ts";
 import {
@@ -159,6 +161,13 @@ export interface GitSyncBridge {
     commitMessage: string,
     mainBranch: string,
   ): GitSyncResult;
+  // Verifies the plan's PR actually merged before the orchestrator
+  // treats the plan as shipped. Returns a structured verdict — merged
+  // or not, with a reason the caller can surface in history events.
+  // Optional: when the bridge is overridden in tests without this
+  // method, the daemon defaults to treating the plan as merged
+  // (the existing tests' happy-path assumption).
+  checkPRMergeState?(repoRoot: string, branch: string): PRMergeState;
 }
 
 export interface Daemon {
@@ -230,6 +239,7 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
   const gitSync: GitSyncBridge = opts.gitSync ?? {
     returnToMain,
     commitAndPushMigration,
+    checkPRMergeState,
   };
 
   if (!opts.skipStartupValidation) {
@@ -730,18 +740,27 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
       return;
     }
 
-    // Budget ceiling (plan 0052). Between-plan enforcement: a plan that
-    // starts within budget is allowed to finish, but we refuse to start a
-    // fresh plan once the ceiling has been crossed. Operator raises the
-    // ceiling (POST or file edit) to resume.
+    // Budget ceiling (plan 0052). The ceiling is a *warning signal*, not
+    // a blocker — for CLI-auth workflows (Codex/Claude via fixed-price
+    // subscriptions) the token count doesn't map to marginal cost, so
+    // pausing on token ceiling is an unhelpful false-positive. We log
+    // the event for observability and continue. Operators who actually
+    // want a hard pause on runaway spend should use /freeze explicitly
+    // with a cost-based signal, or set BUDGET_CEILING_TOKENS to a value
+    // that matches their API-billed reality.
     if (budget.isCeilingReached()) {
       const snap = budget.snapshot();
       logger.log({
         event: "budget_ceiling_reached",
+        level: "warn",
         tokensUsed: snap.tokensUsed,
         tokenCeiling: snap.tokenCeiling,
         costCentsEstimated: snap.costCentsEstimated,
+        note: "warning-only; daemon continues. Use /freeze to pause explicitly.",
       });
+      // Push history once per tick-crossing so the event surface stays
+      // useful without flooding; the store helper dedupes consecutive
+      // events with the same kind + null planId.
       store.pushHistory({
         planId: null,
         event: "budget_ceiling_reached",
@@ -751,10 +770,7 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
           costCentsEstimated: snap.costCentsEstimated,
         },
       });
-      store.update((draft) => {
-        if (draft.mode !== "stopping") draft.mode = "paused";
-      });
-      return;
+      // Fall through — do NOT pause. Budget is advisory in CLI mode.
     }
 
     if (pendingRecoveryPlanId) {
@@ -943,7 +959,42 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
 
         if (result.exitCode === 0 && !result.rateLimited) {
           aggregatePlanTokens(plan);
-          await handleSuccess(plan.id, result);
+          // Verify the PR actually merged before treating this as success.
+          // `run_task.sh` exits 0 when it finished running phases — not when
+          // the merge actually shipped. Merge-check may have refused to
+          // label auto-merge, CI may have failed, PR may have been closed,
+          // or the PR may still be open pending the CI check. In all those
+          // cases the plan is not shipped, and marking it "completed" would
+          // silently migrate the plan file + strand the product code on the
+          // task branch. (Observed on Scrawl's first real run; see the book
+          // Ch 9 postscript.)
+          // Test-seam: bridges that don't supply checkPRMergeState are
+          // treated as auto-merged (existing tests use in-memory git
+          // stubs and don't model a real PR lifecycle). Production
+          // bridges always provide the real gh-backed check.
+          const mergeState: PRMergeState = gitSync.checkPRMergeState
+            ? gitSync.checkPRMergeState(opts.repoRoot, branch)
+            : { merged: true, prNumber: 0, prState: "MERGED" };
+          if (mergeState.merged) {
+            logger.log({
+              event: "pr_merge_verified",
+              planId: plan.id,
+              prNumber: mergeState.prNumber,
+            });
+            await handleSuccess(plan.id, result);
+          } else {
+            logger.log({
+              event: "pr_merge_unverified",
+              level: "warn",
+              planId: plan.id,
+              reason: mergeState.reason,
+              prNumber: mergeState.prNumber,
+              prState: mergeState.prState,
+            });
+            await handleBlocked(plan.id, result, {
+              reason: `run_task.sh exited 0 but PR for ${branch} is not merged: ${mergeState.reason}`,
+            });
+          }
           return;
         }
 

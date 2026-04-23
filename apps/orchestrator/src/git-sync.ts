@@ -154,3 +154,104 @@ export function commitAndPushMigration(
   }
   return { attempted: true, ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// PR merge-state verification (plan 0056 follow-up — the orchestrator was
+// previously trusting `run_task.sh` exit-0 as proof of "plan shipped," which
+// silently marked plans complete even when the PR was closed-without-merge,
+// blocked on CI, or just stuck open. This helper asks GitHub directly and
+// returns a structured verdict the runPlan loop can route on.)
+// ---------------------------------------------------------------------------
+
+export type PRMergeState =
+  | { merged: true; prNumber: number; prState: "MERGED" }
+  | {
+      merged: false;
+      reason: string;
+      prNumber: number | null;
+      prState: string | null;
+    };
+
+/**
+ * Returns whether the PR associated with `branch` in this repo has actually
+ * merged. Uses `gh pr list` to find the PR (matches on --head) then inspects
+ * its state and mergedAt. Any branch without an associated PR, or a PR that
+ * is not MERGED, yields { merged: false, reason }.
+ *
+ * Designed to be safe on error paths: gh failures (missing auth, network
+ * blip, repo misconfigured) produce { merged: false, reason: <detail> }
+ * rather than throwing — the caller will treat this as "not merged yet"
+ * and block the plan, which is the right behavior. A rate-limit-driven
+ * false negative is recoverable; a silent assume-merge is not.
+ */
+export function checkPRMergeState(
+  repoRoot: string,
+  branch: string,
+): PRMergeState {
+  // Scaffolded test repos aren't real git repos — mirror the optimistic
+  // short-circuit that returnToMain/commitAndPushMigration use, so the
+  // daemon's happy-path tests don't need to stub this bridge method.
+  if (!isGitRepo(repoRoot)) {
+    return { merged: true, prNumber: 0, prState: "MERGED" };
+  }
+  // `--state all` so we see closed-but-not-merged PRs (a common failure mode
+  // in the bug this helper is fixing). `--limit 1` because branch→PR is 1:1
+  // for the harness's convention. JSON fields selected are minimal.
+  const result = spawnSync(
+    "gh",
+    [
+      "pr",
+      "list",
+      "--head",
+      branch,
+      "--state",
+      "all",
+      "--limit",
+      "1",
+      "--json",
+      "number,state,mergedAt",
+    ],
+    { cwd: repoRoot, encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    return {
+      merged: false,
+      prNumber: null,
+      prState: null,
+      reason: `gh pr list failed: ${result.stderr.trim() || result.stdout.trim() || `exit ${result.status}`}`,
+    };
+  }
+  let prs: Array<{
+    number: number;
+    state: string;
+    mergedAt: string | null;
+  }>;
+  try {
+    prs = JSON.parse(result.stdout);
+  } catch (err) {
+    return {
+      merged: false,
+      prNumber: null,
+      prState: null,
+      reason: `gh pr list returned unparseable JSON: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+  if (prs.length === 0) {
+    return {
+      merged: false,
+      prNumber: null,
+      prState: null,
+      reason: `no PR found for head branch ${branch}`,
+    };
+  }
+  const pr = prs[0]!;
+  if (pr.state === "MERGED" && pr.mergedAt) {
+    return { merged: true, prNumber: pr.number, prState: "MERGED" };
+  }
+  return {
+    merged: false,
+    prNumber: pr.number,
+    prState: pr.state,
+    reason: `PR #${pr.number} state=${pr.state}, mergedAt=${pr.mergedAt ?? "null"}`,
+  };
+}
