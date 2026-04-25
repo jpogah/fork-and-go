@@ -19,24 +19,23 @@ What's in this repo today:
 - **Context ingestion** (`packages/context-ingest/` + `scripts/context.{sh,mjs}`): `docs/context/` drop folder with scope grammar (run / planner / phase / all), prompt-injection-aware rendering, file-cap and priority management.
 - **Budget governance** (`packages/run-budget/` + `scripts/estimate-cost.mjs`, `scripts/budget-raise.mjs`, `scripts/agent-log.mjs`, `scripts/rate-limit-detect.mjs`): token tracking across Claude/Codex agent invocations, rate-limit detection in agent logs, configurable per-run/per-product ceilings, daemon freeze-on-ceiling.
 - **Release gate** (`packages/release-gate/` + `scripts/release-gate.{sh,ts}`): top-level acceptance-criteria definition, plan-acceptance-tag cross-reference, orchestrator stopping rule.
+- **Generic builder client** (`packages/builder/`): harness-level model-client package with Codex CLI and OpenAI backends.
+- **Planner agent** (`packages/planner/` + `scripts/plan.{sh,ts}`): product spec to ordered execution plans, idempotent across re-runs.
+- **Spec-fidelity checker** (`packages/fidelity-check/` + `scripts/check-fidelity.{sh,ts}`): spec drift audit, report writing, and active-plan suspension when drift crosses threshold.
 - **GitHub Actions auto-merge workflow** (`.github/workflows/agent-automerge.yml`): label-triggered squash-merge gated on CI.
 - **The field journal** (`docs/HARNESS_ENGINEERING.md`) — 1,200+ lines of notes on what broke and what fixed it, traceable to specific plan incidents.
 
 **Validated against:** 60+ merged PRs on a production SaaS. The full Tier-1 harness-engineering arc (plans 0048 through 0054) shipped through the harness's own loop in a single day on April 22, 2026.
 
-**Not in v0.1:**
-- The planner agent (`packages/planner/`) — currently depends on an Agently-product-specific LLM-client wrapper. Shipping in v0.2 after LLM-client extraction.
-- The spec-fidelity checker (`packages/fidelity-check/`) — same LLM-client coupling. Shipping in v0.2.
-
 See [`CUSTOMIZE.md`](CUSTOMIZE.md) for what to tune before your first run.
 
 ---
 
-## v0.2 — Planner + fidelity checker + LLM-client extraction
+## v0.2 — Planner + fidelity checker + builder-client extraction
 
-*Target: 4-6 weeks after v0.1, contingent on external fork signal informing planner calibration.*
+*Shipped into this repo after the Agently-specific model-client dependency was extracted.*
 
-- **LLM-client package extraction.** Factor `@agently/builder` (the Agently product's OpenAI wrapper) into a generic `@fork-and-go/llm-client` that the planner, fidelity-check, and any future harness-level agent can depend on. Support for both OpenAI and Anthropic as providers; model-selection via environment variables.
+- **Builder-client package extraction.** Factor the Agently product's model wrapper into generic `@fork-and-go/builder`, used by planner, fidelity-check, and future harness-level agents. Support Codex CLI by default and OpenAI via environment variables.
 - **Planner agent** (`packages/planner/` + `scripts/plan.sh`): takes a product spec (free-form markdown in `docs/product-specs/`), analyzes the current repo state, emits a sequence of execution plan files conforming to the 0048 frontmatter schema. Idempotent on re-run.
 - **Spec-fidelity checker** (`packages/fidelity-check/` + `scripts/check-fidelity.sh`): periodic audit of delivered work against the original product spec. Auto-suspension of active plans when drift score exceeds configurable threshold. Orchestrator hook to fire every N merges.
 - **Documented planner calibration.** Against multiple spec shapes (brief specs, verbose specs, structured specs).

@@ -87,9 +87,9 @@ If you're forking this harness, read that doc first. Read it again after your fi
 
 ---
 
-## What's in v0.1
+## What's in this repo
 
-This release ships the Tier-1 harness-engineering arc from the companion book — the full scaffolding that closed the demo-to-production gap on a real codebase:
+This repo ships the Tier-1 harness-engineering arc from the companion book — the full scaffolding that closed the demo-to-production gap on a real codebase:
 
 - **Plan schema + dependency graph** (`packages/plan-graph/`, `scripts/plan-graph.sh`).
 - **Phase runner with rescue primitive** (`scripts/run_task.sh`, `scripts/run_task_loop.sh`).
@@ -97,13 +97,14 @@ This release ships the Tier-1 harness-engineering arc from the companion book �
 - **Context ingestion** (`packages/context-ingest/` + `scripts/context.sh`) — `docs/context/` drop folder with scope grammar and prompt-injection defense.
 - **Budget governance** (`packages/run-budget/` + cost/budget/rate-limit CLIs) — per-run and per-product token ceilings.
 - **Release gate** (`packages/release-gate/` + `scripts/release-gate.sh`) — top-level acceptance criteria for "product is done."
+- **Generic builder client** (`packages/builder/`) — a harness-level model client with Codex CLI and OpenAI backends.
+- **Planner agent** (`packages/planner/` + `scripts/plan.sh`) — turns a product spec into ordered executable plans.
+- **Spec-fidelity checker** (`packages/fidelity-check/` + `scripts/check-fidelity.sh`) — audits delivered work against the product spec and can suspend drifted active plans.
 - **Five phase prompts** (`docs/prompts/`), **GitHub Actions auto-merge** (`.github/workflows/`), **1,200 lines of field notes** (`docs/HARNESS_ENGINEERING.md`).
-
-Not yet in v0.1: the planner agent and the spec-fidelity checker both depend on an LLM-client wrapper that needs to be extracted from the Agently product codebase before it can be shipped generically. Both land in v0.2. See [`ROADMAP.md`](ROADMAP.md).
 
 ## Roadmap
 
-- **v0.2** Planner agent + spec-fidelity checker + generic LLM-client package extraction.
+- **v0.2** Planner agent + spec-fidelity checker + generic builder-client extraction.
 - **v0.3** Agent adapter infrastructure (Codex, Aider, Cursor agent mode as reference adapters).
 - **v0.4+** Spec-to-spec communication between forked harnesses; demonstrated 10-hour unattended run; greenfield fork-and-go end-to-end.
 
