@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fork-and-Go — The spec-to-merged-PR harness</title>
-  <meta name="description" content="An open-source agent-first harness: spec-to-plan planning, review, fix, e2e-verify, merge-check, and spec-fidelity auditing. Companion to the book Agent-First Engineering by Johnpaul Ogah." />
+  <meta name="description" content="An open-source agent-first harness: URL-to-app reverse engineering, spec-to-plan planning, review, fix, e2e-verify, merge-check, and spec-fidelity auditing. Companion to the book Agent-First Engineering by Johnpaul Ogah." />
 
   <!-- Open Graph / LinkedIn / Twitter -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Fork-and-Go — The spec-to-merged-PR harness" />
-  <meta property="og:description" content="Open-source agent-first engineering harness with planner, orchestrator, release gate, and spec-fidelity checker. Companion to Agent-First Engineering (2026)." />
+  <meta property="og:description" content="Open-source agent-first engineering harness with URL-to-app reverse engineering, planner, orchestrator, release gate, and spec-fidelity checker. Companion to Agent-First Engineering (2026)." />
   <meta property="og:image" content="https://jpogah.github.io/fork-and-go/images/book-cover.png" />
   <meta property="og:url" content="https://jpogah.github.io/fork-and-go/" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -180,15 +180,15 @@
 
   <!-- HERO -->
   <section class="max-w-5xl mx-auto px-6 pt-12 sm:pt-20 pb-16 sm:pb-24">
-    <span class="fg-chip mb-6">Planner + fidelity checker shipped · MIT License · 2026</span>
+    <span class="fg-chip mb-6">URL-to-app + planner + fidelity shipped · MIT License · 2026</span>
     <h1 class="text-5xl sm:text-7xl font-extrabold tracking-tight text-ink leading-[0.95] mt-4">
       The harness that ships<br/>
       merged PRs <em class="italic text-accent font-semibold">while you sleep.</em>
     </h1>
     <p class="mt-8 text-lg sm:text-xl text-ink-muted max-w-3xl font-serif leading-relaxed">
-      Fork-and-Go is an open-source agent-first engineering harness. It wraps your coding agent
-      in spec-to-plan planning, review, fix, e2e-verify, merge-check, and spec-fidelity audit
-      phases — and drives each execution plan from an approved spec to a merged pull request
+      Fork-and-Go is an open-source agent-first engineering harness. It can start from a public
+      URL, product spec, or plan, then wraps your coding agent in reverse engineering, spec-to-plan
+      planning, review, fix, e2e-verify, merge-check, and spec-fidelity audit phases — and drives each execution plan from an approved spec to a merged pull request
       without human intervention between phases. Companion to the book <em>Agent-First Engineering: A Field Report on Shipping
       Software With AI Coding Agents</em>.
     </p>
@@ -225,8 +225,9 @@
         look impossible.
       </p>
       <p class="mt-5 text-base sm:text-lg text-ink-muted font-serif leading-relaxed">
-        Fork-and-Go automates the tower. Planner, daemon, release gate, and fidelity checker
-        coordinate the loop around your coding agent. You supply a spec or plan; it ships a PR.
+        Fork-and-Go automates the tower. Site reverse-engineering, planner, daemon, release gate,
+        and fidelity checker coordinate the loop around your coding agent. You supply a URL, spec,
+        or plan; it ships a PR.
       </p>
     </div>
   </section>
@@ -238,6 +239,8 @@
       <div class="flex flex-col items-center gap-8">
         <!-- Linear flow -->
         <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+          <span class="fg-node">URL</span>
+          <span class="fg-arrow">→</span>
           <span class="fg-node">Spec</span>
           <span class="fg-arrow">→</span>
           <span class="fg-node">Planning</span>
@@ -257,7 +260,7 @@
           <span class="fg-arrow-loop text-sm">↑ findings ↑</span>
         </div>
         <p class="text-sm text-ink-muted font-serif italic text-center max-w-2xl">
-          The planner emits executable plan files from a product spec. Review findings, failing
+          The site reverse-engineer turns public URLs into improved-rebuild specs. The planner emits executable plan files from a product spec. Review findings, failing
           Playwright tests, and fidelity drift feed back into Fix or re-planning. Convergence,
           then merge-check labels for auto-merge.
         </p>
@@ -268,7 +271,16 @@
   <!-- SHIPPED CAPABILITIES -->
   <section class="max-w-5xl mx-auto px-6 pb-16 sm:pb-24">
     <h3 class="text-2xl font-bold text-ink mb-6">What's shipped now</h3>
-    <div class="grid md:grid-cols-3 gap-5">
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div class="fg-panel p-6">
+        <span class="fg-chip mb-3">URL → spec</span>
+        <h4 class="text-xl font-bold text-ink mt-4">Site reverse-engineering</h4>
+        <p class="mt-4 text-sm text-ink-muted font-serif leading-relaxed">
+          <code class="font-mono bg-paper-strong px-1.5 py-0.5 rounded">./scripts/reverse-site.sh</code>
+          captures public sites with Playwright, writes source evidence, and generates improved
+          rebuild specs with guardrails against brand or source copying.
+        </p>
+      </div>
       <div class="fg-panel p-6">
         <span class="fg-chip mb-3">Spec → plans</span>
         <h4 class="text-xl font-bold text-ink mt-4">Planner agent</h4>
@@ -315,18 +327,24 @@ git clone https://github.com/jpogah/fork-and-go.git my-app
 <span class="c"># 2. Preview generated plans from the example product spec</span>
 ./scripts/plan.sh docs/product-specs/EXAMPLE.md --preview
 
-<span class="c"># 3. Or write your first plan by hand</span>
+<span class="c"># 3. Or start from a public site and generate an improved rebuild spec</span>
+npx playwright install chromium
+./scripts/reverse-site.sh https://online-video-cutter.com/ \
+  --name video-cutter-rebuild \
+  --planner-preview
+
+<span class="c"># 4. Or write your first plan by hand</span>
 cp docs/exec-plans/execution-plan-template.md \
   docs/exec-plans/active/0001-my-first-feature.md
 ./scripts/plan-graph.sh validate
 
-<span class="c"># 4. Start the orchestrator daemon</span>
+<span class="c"># 5. Start the orchestrator daemon</span>
 ./scripts/orchestrator.sh start-bg
 
-<span class="c"># 5. Resume — it picks up the earliest eligible plan automatically</span>
+<span class="c"># 6. Resume — it picks up the earliest eligible plan automatically</span>
 curl -X POST http://localhost:4500/resume
 
-<span class="c"># 6. Watch it ship</span>
+<span class="c"># 7. Watch it ship</span>
 tail -f .orchestrator/orchestrator.log</pre>
       <div class="mt-6 flex flex-wrap gap-3">
         <a href="https://github.com/jpogah/fork-and-go#readme" class="fg-button">Full README</a>

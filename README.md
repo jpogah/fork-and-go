@@ -2,7 +2,7 @@
 
 **Agent-first delivery pipelines that ship while you're asleep.**
 
-Fork-and-Go is an opinionated harness for running coding agents (Claude Code today, others next) through a full plan → implement → review → fix → PR → merge loop. It takes a human-written execution plan and autonomously lands a merged PR — no hand-holding between phases.
+Fork-and-Go is an opinionated harness for running coding agents (Claude Code today, others next) through a full spec -> plan -> implement -> review -> fix -> PR -> merge loop. It can start from a human-written plan, a product spec, or a public URL that gets reverse-engineered into an improved rebuild spec.
 
 > This is the scaffolding that shipped 30+ merged plans for a production SaaS. The harness is the product; the plans are the test suite.
 
@@ -54,6 +54,19 @@ $EDITOR docs/exec-plans/active/0001-my-first-feature.md
 
 That's the whole UX. The runner handles branching, commits, PR, CI wait, auto-merge.
 
+You can also start from a product spec or public website:
+
+```bash
+# Product spec -> executable plans
+./scripts/plan.sh docs/product-specs/EXAMPLE.md --preview
+
+# Public URL -> evidence bundle + improved rebuild spec + executable plans
+npx playwright install chromium   # one-time browser install if needed
+./scripts/reverse-site.sh https://online-video-cutter.com/ \
+  --name video-cutter-rebuild \
+  --planner-preview
+```
+
 ---
 
 ## The opinionated parts
@@ -101,12 +114,13 @@ This repo ships the Tier-1 harness-engineering arc from the companion book — t
 - **Release gate** (`packages/release-gate/` + `scripts/release-gate.sh`) — top-level acceptance criteria for "product is done."
 - **Generic model client** (`packages/model-client/`) — a harness-level model client with Codex CLI and OpenAI backends.
 - **Planner agent** (`packages/planner/` + `scripts/plan.sh`) — turns a product spec into ordered executable plans.
+- **Site reverse-engineering** (`packages/site-reverse/` + `scripts/reverse-site.sh`) — captures a public URL with Playwright, generates an improved-rebuild product spec, stores source evidence, and hands the spec to the planner.
 - **Spec-fidelity checker** (`packages/fidelity-check/` + `scripts/check-fidelity.sh`) — audits delivered work against the product spec and can suspend drifted active plans.
 - **Five phase prompts** (`docs/prompts/`), **GitHub Actions auto-merge** (`.github/workflows/`), **1,200 lines of field notes** (`docs/HARNESS_ENGINEERING.md`).
 
 ## Roadmap
 
-- **v0.2** Planner agent + spec-fidelity checker + generic model-client extraction.
+- **v0.2** Planner agent + spec-fidelity checker + generic model-client extraction + URL-to-app reverse-engineering.
 - **v0.3** Agent adapter infrastructure (Codex, Aider, Cursor agent mode as reference adapters).
 - **v0.4+** Spec-to-spec communication between forked harnesses; demonstrated 10-hour unattended run; greenfield fork-and-go end-to-end.
 

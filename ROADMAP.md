@@ -21,6 +21,7 @@ What's in this repo today:
 - **Release gate** (`packages/release-gate/` + `scripts/release-gate.{sh,ts}`): top-level acceptance-criteria definition, plan-acceptance-tag cross-reference, orchestrator stopping rule.
 - **Generic model client** (`packages/model-client/`): harness-level model-client package with Codex CLI and OpenAI backends.
 - **Planner agent** (`packages/planner/` + `scripts/plan.{sh,ts}`): product spec to ordered execution plans, idempotent across re-runs.
+- **Site reverse-engineering** (`packages/site-reverse/` + `scripts/reverse-site.{sh,ts}`): public URL to Playwright evidence bundle, improved-rebuild product spec, and planner handoff.
 - **Spec-fidelity checker** (`packages/fidelity-check/` + `scripts/check-fidelity.{sh,ts}`): spec drift audit, report writing, and active-plan suspension when drift crosses threshold.
 - **GitHub Actions auto-merge workflow** (`.github/workflows/agent-automerge.yml`): label-triggered squash-merge gated on CI.
 - **The field journal** (`docs/HARNESS_ENGINEERING.md`) — 1,200+ lines of notes on what broke and what fixed it, traceable to specific plan incidents.
@@ -33,10 +34,11 @@ See [`CUSTOMIZE.md`](CUSTOMIZE.md) for what to tune before your first run.
 
 ## v0.2 — Planner + fidelity checker + model-client extraction
 
-*Shipped into this repo after the product-specific model-client dependency was extracted.*
+*Shipped into this repo after the product-specific model-client dependency was extracted and the first URL-to-app path landed.*
 
 - **Model-client package extraction.** Factor the product-specific model wrapper into generic `@fork-and-go/model-client`, used by planner, fidelity-check, and future harness-level agents. Support Codex CLI by default and OpenAI via environment variables.
 - **Planner agent** (`packages/planner/` + `scripts/plan.sh`): takes a product spec (free-form markdown in `docs/product-specs/`), analyzes the current repo state, emits a sequence of execution plan files conforming to the 0048 frontmatter schema. Idempotent on re-run.
+- **Site reverse-engineering** (`packages/site-reverse/` + `scripts/reverse-site.sh`): captures a public URL with local Playwright, synthesizes an improved-rebuild spec with legal-safe guardrails, writes source evidence, and invokes the planner.
 - **Spec-fidelity checker** (`packages/fidelity-check/` + `scripts/check-fidelity.sh`): periodic audit of delivered work against the original product spec. Auto-suspension of active plans when drift score exceeds configurable threshold. Orchestrator hook to fire every N merges.
 - **Documented planner calibration.** Against multiple spec shapes (brief specs, verbose specs, structured specs).
 
