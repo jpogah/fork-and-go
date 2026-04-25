@@ -77,6 +77,18 @@ Other conventions:
 - Each plan ships a demoable slice. If you cannot imagine an operator
   visiting a page, running a script, or seeing a metric change after the
   plan merges, break it down further.
+- If the spec describes a SaaS, consumer product, marketplace, launch,
+  waitlist, public website, case study, or customer acquisition motion,
+  explicitly check whether brand identity, public landing-page design,
+  conversion copy, responsive visual system, and analytics are already
+  covered by existing plans. If not, emit a dedicated Marketing or
+  Frontend plan for that public conversion system. Do not treat a landing
+  page as only a route, form, or database submit path.
+- If the spec describes authenticated product surfaces, ensure at least one
+  plan covers product UI structure, navigation, empty/loading/error states,
+  responsive behavior, and the design system needed to keep repeated
+  screens coherent. This can be part of a foundation plan only when the
+  scope explicitly includes those deliverables.
 - Prefer many small plans over a few large ones. `estimated_passes` > 4 is
   a signal to split.
 - Infrastructure prerequisites (auth, DB, secrets) are already landed.

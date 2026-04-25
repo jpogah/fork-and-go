@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import YAML from "yaml";
@@ -38,6 +38,7 @@ export function loadPlans(options: LoadPlansOptions): Plan[] {
 }
 
 function loadPlansFromDir(dir: string, location: PlanLocation): Plan[] {
+  if (!existsSync(dir)) return [];
   const entries = readdirSync(dir, { withFileTypes: true });
   const plans: Plan[] = [];
   for (const entry of entries) {

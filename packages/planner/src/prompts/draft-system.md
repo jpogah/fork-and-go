@@ -47,14 +47,26 @@ add value, but they are optional:
 - `## Locked Decisions`
 - `## Acceptance Criteria`
 - `## Data Model and Interfaces`
+- `## Brand And UI Direction`
+- `## Public Conversion Flow`
 - `## Read-First Files`
 - `## Trigger Shortcuts`
 - `## Execution Steps`
 
 ## Style
 
-- Match the voice of the repo's existing plans: direct, first-person-plural,
-  no marketing language.
+- Match the voice of the repo's existing plans: direct and first-person-plural.
+  Avoid empty hype. For public brand, landing-page, launch, or conversion
+  plans, use concrete marketing and design language when it names real
+  deliverables such as visual identity, copy hierarchy, CTA flow, proof
+  story, responsive layout, motion, assets, and analytics.
+- Do not reduce public landing pages to routing, forms, and persistence. If
+  the proposal is for a public or conversion surface, include visual thesis,
+  information hierarchy, responsive behavior, conversion states, and how the
+  page proves the product's promise.
+- For authenticated product surfaces, include product UI structure, navigation,
+  object states, empty/loading/error states, and how the design system keeps
+  dense workflows coherent.
 - Prefer concrete file paths and package names over vague nouns ("edit
   `packages/foo/bar.ts`" beats "update the foo module").
 - Do not invent APIs, packages, or file paths that do not plausibly belong
