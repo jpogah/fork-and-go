@@ -98,16 +98,14 @@ Call it from preflight.
 
 ---
 
-## The planner and the fidelity checker — v0.2 work
+## The planner and the fidelity checker
 
-Two capabilities from the Tier-1 harness-engineering arc are **not** yet shipped in this v0.1 OSS release because they currently depend on an Agently-product-specific LLM-client wrapper (`@agently/builder`) that needs to be refactored into a generic harness-level package before it's safe to ship here:
+Two capabilities from the Tier-1 harness-engineering arc now ship as generic harness packages:
 
-- **The planner agent** (spec → plan sequence). Would ship as `packages/planner/` + `scripts/plan.{sh,ts}`. Takes a product spec and emits an ordered sequence of executable plans.
-- **The spec-fidelity checker.** Would ship as `packages/fidelity-check/` + `scripts/check-fidelity.{sh,ts}`. Periodically audits whether the harness's delivered work matches the product spec and auto-suspends on drift.
+- **The planner agent** (spec → plan sequence) lives in `packages/planner/` + `scripts/plan.{sh,ts}`. It takes a product spec and emits an ordered sequence of executable plans.
+- **The spec-fidelity checker** lives in `packages/fidelity-check/` + `scripts/check-fidelity.{sh,ts}`. It periodically audits whether the harness's delivered work matches the product spec and can auto-suspend active plans on drift.
 
-Both are described in detail in the companion book (chapters 3, 12, 14, 17). They'll land in v0.2 once the LLM-client extraction is complete. If you want to run the planner against your own harness before v0.2, you can fork the upstream implementation and wire it to your preferred LLM client manually.
-
-See `ROADMAP.md` for the v0.2 scope.
+Both use the generic `@fork-and-go/builder` model-client package. The default backend shells out through the Codex CLI; set `BUILDER_LLM_CLIENT=openai` and `OPENAI_API_KEY` to use the OpenAI backend.
 
 ---
 
