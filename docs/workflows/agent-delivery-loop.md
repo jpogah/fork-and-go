@@ -11,16 +11,35 @@ This repository treats delivery as a sequence of explicit agent roles instead of
 
 ## Happy Path
 
-1. Update or create an execution plan in `docs/exec-plans/active/`.
-2. Prompt the implementation agent with the exact files it must read first.
-3. Implement the smallest coherent change.
-4. Run `./scripts/preflight.sh`.
-5. Run a self-review pass using the checked-in review prompt.
-6. Fix findings and rerun `./scripts/preflight.sh`.
-7. Generate a PR body with `./scripts/prepare_pr.sh`.
-8. Open the pull request.
-9. Run an independent review agent against the PR or branch.
-10. If the PR is ready, add the `agent/automerge` label and run `./scripts/enable_automerge.sh`.
+1. Start from a product spec, a public URL, or a hand-written execution plan.
+2. If starting from a URL, run `./scripts/reverse-site.sh <url> --name <slug>` to capture public evidence and generate an improved-rebuild spec.
+3. If starting from a spec, run `./scripts/plan.sh <spec-file>` to emit execution plans.
+4. Prompt the implementation agent with the exact files it must read first.
+5. Implement the smallest coherent change.
+6. Run `./scripts/preflight.sh`.
+7. Run a self-review pass using the checked-in review prompt.
+8. Fix findings and rerun `./scripts/preflight.sh`.
+9. Generate a PR body with `./scripts/prepare_pr.sh`.
+10. Open the pull request.
+11. Run an independent review agent against the PR or branch.
+12. If the PR is ready, add the `agent/automerge` label and run `./scripts/enable_automerge.sh`.
+
+## Spec Sources
+
+Product specs can be written directly under `docs/product-specs/`, generated from a public site, or supplied as context for an already scoped execution plan.
+
+```bash
+# Public URL -> evidence bundle + improved rebuild spec + planner proposals
+npx playwright install chromium   # one-time browser install if needed
+./scripts/reverse-site.sh https://online-video-cutter.com/ \
+  --name video-cutter-rebuild \
+  --planner-preview
+
+# Product spec -> execution plans
+./scripts/plan.sh docs/product-specs/video-cutter-rebuild.md
+```
+
+The reverse-site path is intentionally an improved rebuild flow, not a pixel-clone flow. It stores public browser evidence under `docs/context/site-reverse/<slug>/`, writes a planner-scoped context drop, and tells the implementer not to copy proprietary source, trademarks, protected media, or hosted assets.
 
 ## One-Command Runner
 
