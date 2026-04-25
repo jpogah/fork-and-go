@@ -145,6 +145,14 @@ describe("loadPlans", () => {
       ["0010", "active"],
     ]);
   });
+
+  it("treats missing plan directories as empty", () => {
+    const plans = loadPlans({
+      activeDir: path.join(dir, "missing-active"),
+      completedDir: path.join(dir, "missing-completed"),
+    });
+    expect(plans).toEqual([]);
+  });
 });
 
 function frontmatter(opts: {

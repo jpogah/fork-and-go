@@ -12,6 +12,11 @@ Why does this work matter at the current stage of the product?
 
 - In scope item
 
+## Design / UX
+
+- Required for user-facing work: information architecture, visual system,
+  interaction states, responsive behavior, and conversion or task-flow goals
+
 ## Out Of Scope
 
 - Explicitly excluded item

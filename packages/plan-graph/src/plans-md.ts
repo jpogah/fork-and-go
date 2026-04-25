@@ -33,7 +33,7 @@ const HEADER_LINES: string[] = [
   "",
   "## Active Roadmap",
   "",
-  "The MVP is sequenced so each plan ships a visible slice and most landings can be demoed independently.",
+  "The roadmap is sequenced so foundation, data, product workflows, automation, and commercial readiness can land as independently verifiable slices.",
   "",
 ];
 
@@ -41,11 +41,10 @@ const FOOTER_LINES: string[] = [
   "",
   "## Sequencing Notes",
   "",
-  "- Marketing ships first so interest capture runs while product is built.",
-  "- Foundation (auth, data, secrets, shell) is prerequisite for every product landing.",
-  "- Agent Authoring before Runtime so we can ship a Builder-only preview behind a feature flag.",
-  "- Trust surfaces land after Runtime because they project runtime audit data.",
-  "- Billing can land in parallel with Trust once Foundation is in place; deploy is last.",
+  "- Foundation work should land before features that depend on auth, data, secrets, or the app shell.",
+  "- Data contracts and integration boundaries should stabilize before automation or reporting layers rely on them.",
+  "- Risky external actions should ship behind approval, audit, and rollback controls before any autopilot behavior is enabled.",
+  "- Billing and deployment readiness can land in parallel once the core workspace model is stable.",
   "",
 ];
 
