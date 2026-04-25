@@ -13,7 +13,7 @@ Static one-page landing site for Fork-and-Go. Served via GitHub Pages from `main
 
 Edit `index.html`, commit via PR (branch protection requires it), merge — Pages redeploys on push to `main`. Typical deploy latency is under a minute.
 
-The page has six sections: hero, problem framing, loop diagram, quickstart, case study (Scrawl), and the book. Aesthetic matches the book cover and Scrawl's product palette: warm cream paper `#f6efe1`, ink-black type `#1f1a17`, teal accent `#2f6b72`, hand-drawn irregular corner radii on panels and buttons.
+The page has seven sections: hero, problem framing, loop diagram, shipped capabilities, quickstart, case study (Scrawl), and the book. Aesthetic matches the book cover and Scrawl's product palette: warm cream paper `#f6efe1`, ink-black type `#1f1a17`, teal accent `#2f6b72`, hand-drawn irregular corner radii on panels and buttons.
 
 ## Deploy (one-time setup)
 

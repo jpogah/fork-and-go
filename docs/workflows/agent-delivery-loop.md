@@ -88,8 +88,8 @@ Implementation agent:
 
 ```bash
 ./scripts/preflight.sh
-./scripts/prepare_pr.sh > /tmp/agently-pr.md
-gh pr create --fill --body-file /tmp/agently-pr.md
+./scripts/prepare_pr.sh > /tmp/fork-and-go-pr.md
+gh pr create --fill --body-file /tmp/fork-and-go-pr.md
 ```
 
 Review agent:

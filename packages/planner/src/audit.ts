@@ -1,10 +1,10 @@
-// Audit events emitted by the planner. Mirrors the builder's sink pattern:
+// Audit events emitted by the planner. Mirrors the harness sink pattern:
 // callers inject their preferred sink (no-op, in-memory for tests, logger,
 // Postgres-backed once the audit store wires planner events). The event
 // payloads are intentionally small and schemaless beyond what an operator
 // needs to reconstruct a run — tokens, model, cost, proposal ids, failures.
 
-import type { ModelUsage } from "@fork-and-go/builder";
+import type { ModelUsage } from "@fork-and-go/model-client";
 
 export type PlannerAuditKind =
   | "planning.started"

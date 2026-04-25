@@ -6,7 +6,7 @@ import type {
   ModelRequest,
   ModelResponse,
   ModelUsage,
-} from "@fork-and-go/builder";
+} from "@fork-and-go/model-client";
 
 // Build a scripted model client that replays a sequence of canned responses.
 // Each call consumes one entry from the queue; calls past the end return the

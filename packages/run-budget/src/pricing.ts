@@ -1,10 +1,10 @@
-// Token-to-cost rate card. Mirrors the per-million-token prices the builder's
-// model client already uses (packages/builder/src/model-client.ts) so the
-// single source of truth is numeric, not code-location. When the builder's
-// pricing changes, update this table too.
+// Token-to-cost rate card. Mirrors the per-million-token prices the model
+// client uses (packages/model-client/src/model-client.ts) so the single source
+// of truth is numeric, not code-location. When model pricing changes, update
+// this table too.
 //
 // Numbers are US cents per million tokens. Anything that hits the runner is
-// Claude today; OpenAI entries cover planner/builder work that also rolls
+// Claude today; OpenAI entries cover planner/fidelity work that also rolls
 // through the harness budget.
 
 export interface TokenUsage {
@@ -37,7 +37,7 @@ export const RATE_CARD: readonly ModelRate[] = [
     inputCentsPerMTok: 80,
     outputCentsPerMTok: 400,
   },
-  // OpenAI GPT-5.4 (builder / planner) — matches packages/builder/src/model-client.ts
+  // OpenAI GPT-5.4 (planner / fidelity) — matches packages/model-client/src/model-client.ts
   {
     model: "gpt-5.4-mini",
     inputCentsPerMTok: 25,

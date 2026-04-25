@@ -17,10 +17,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import {
-  BUILDER_DEFAULT_MODEL,
-  BUILDER_REPAIR_MODEL,
+  MODEL_CLIENT_DEFAULT_MODEL,
+  MODEL_CLIENT_REPAIR_MODEL,
   createModelClient,
-} from "@fork-and-go/builder";
+} from "@fork-and-go/model-client";
 import { DEFAULT_THRESHOLD, runFidelityCheck } from "@fork-and-go/fidelity-check";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
@@ -58,12 +58,12 @@ function usage(): string {
     "  -h, --help            Show this help.",
     "",
     "Environment:",
-    "  BUILDER_LLM_CLIENT            `cli` (default, spawns `codex exec`) or",
+    "  FORK_AND_GO_LLM_CLIENT            `cli` (default, spawns `codex exec`) or",
     "                                `openai` (requires OPENAI_API_KEY).",
-    "  OPENAI_API_KEY                Required only when BUILDER_LLM_CLIENT=openai.",
+    "  OPENAI_API_KEY                Required only when FORK_AND_GO_LLM_CLIENT=openai.",
     "  FIDELITY_DRIFT_THRESHOLD      Overrides the default threshold.",
-    "  FIDELITY_MODEL                Default LLM model (falls back to BUILDER_MODEL).",
-    "  FIDELITY_REPAIR_MODEL         Repair LLM model (falls back to BUILDER_REPAIR_MODEL).",
+    "  FIDELITY_MODEL                Default LLM model (falls back to FORK_AND_GO_MODEL).",
+    "  FIDELITY_REPAIR_MODEL         Repair LLM model (falls back to FORK_AND_GO_REPAIR_MODEL).",
     "  .orchestrator/fidelity-config.json",
     '                                Optional JSON: { "threshold": N }',
   ].join("\n");
@@ -203,12 +203,12 @@ async function main(): Promise<number> {
 
   const defaultModel =
     process.env.FIDELITY_MODEL ||
-    process.env.BUILDER_MODEL ||
-    BUILDER_DEFAULT_MODEL;
+    process.env.FORK_AND_GO_MODEL ||
+    MODEL_CLIENT_DEFAULT_MODEL;
   const repairModel =
     process.env.FIDELITY_REPAIR_MODEL ||
-    process.env.BUILDER_REPAIR_MODEL ||
-    BUILDER_REPAIR_MODEL;
+    process.env.FORK_AND_GO_REPAIR_MODEL ||
+    MODEL_CLIENT_REPAIR_MODEL;
 
   let modelClient;
   try {

@@ -1,22 +1,17 @@
-// Provider-agnostic model client, now backed by OpenAI's GPT-5.4 family.
-// Consumers upstream (`interviewer.ts`, `audit.ts`, the route handler) only
-// see the `ModelClient` interface — swapping the provider is a one-file move.
+// Provider-agnostic model client for harness-level LLM calls. Planner and
+// fidelity-check code depend only on the `ModelClient` interface, so the
+// runtime transport can be Codex CLI or OpenAI without changing callers.
 //
 // We use OpenAI Chat Completions with `response_format: { type: "json_object" }`
-// rather than json_schema strict mode: strict mode requires every object to
-// close `additionalProperties`, every property to appear in `required`
-// (nullable for optional), and rejects open `{}` subschemas. Our JSON Patch
-// `value` is, by RFC 6902, any JSON — it cannot be bounded without an open
-// subschema or a recursive enumeration of every patchable AgentSpec subtree.
-// `parseTurn` in the interviewer is already the integrity boundary for the
-// three turn shapes and the patch-op contract, so we let the model emit any
-// JSON object and validate it there.
+// rather than json_schema strict mode: strict mode rejects open-ended objects
+// and can make reusable harness prompts brittle. Planner and fidelity-check
+// each validate the returned JSON with package-local Zod schemas.
 //
 // The `system` field on the request maps to an OpenAI `system` role message;
 // history messages carry their existing `user` / `assistant` roles.
 //
-// The interviewer's `model` override is honored: default turns hit
-// `gpt-5.4-mini`, repair attempts escalate to `gpt-5.4`.
+// Callers can override `model` per request. Planner and fidelity-check use
+// `gpt-5.4-mini` for default attempts and `gpt-5.4` for repair attempts.
 //
 // Errors from the SDK surface as `ModelClientError` with the raw status text
 // preserved for diagnostics (never the API key).
@@ -33,8 +28,7 @@ export type ModelUsage = {
 export type ModelRequest = {
   system: string;
   messages: ReadonlyArray<{ role: "user" | "assistant"; content: string }>;
-  // Defaults to `gpt-5.4-mini`. The Interviewer overrides this to `gpt-5.4`
-  // on repair attempts per the plan.
+  // Defaults to `gpt-5.4-mini`. Callers can set `gpt-5.4` for repair attempts.
   model?: string;
   maxTokens?: number;
   temperature?: number;
@@ -58,14 +52,14 @@ const REPAIR_MODEL = "gpt-5.4";
 // gives comfortable headroom for both reasoning and a full turn response.
 const DEFAULT_MAX_TOKENS = 4096;
 // OpenAI GPT-5.4 public pricing (April 2026), in US-cents per million tokens.
-// The mini/full split mirrors the Interviewer's default/repair tiering.
+// The mini/full split mirrors the planner/fidelity default/repair tiering.
 const MINI_INPUT_CENTS_PER_MTOK = 25;
 const MINI_OUTPUT_CENTS_PER_MTOK = 200;
 const FULL_INPUT_CENTS_PER_MTOK = 250;
 const FULL_OUTPUT_CENTS_PER_MTOK = 2000;
 
-export const BUILDER_DEFAULT_MODEL = DEFAULT_MODEL;
-export const BUILDER_REPAIR_MODEL = REPAIR_MODEL;
+export const MODEL_CLIENT_DEFAULT_MODEL = DEFAULT_MODEL;
+export const MODEL_CLIENT_REPAIR_MODEL = REPAIR_MODEL;
 
 export function estimateCostCents(
   model: string,

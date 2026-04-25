@@ -6,6 +6,8 @@ Fork-and-Go is an opinionated harness for running coding agents (Claude Code tod
 
 > This is the scaffolding that shipped 30+ merged plans for a production SaaS. The harness is the product; the plans are the test suite.
 
+Companion book: [*Agent-First Engineering: A Field Report on Shipping Software With AI Coding Agents*](https://www.amazon.com/dp/B0GYBLMY5L).
+
 ---
 
 ## What it does
@@ -97,14 +99,14 @@ This repo ships the Tier-1 harness-engineering arc from the companion book — t
 - **Context ingestion** (`packages/context-ingest/` + `scripts/context.sh`) — `docs/context/` drop folder with scope grammar and prompt-injection defense.
 - **Budget governance** (`packages/run-budget/` + cost/budget/rate-limit CLIs) — per-run and per-product token ceilings.
 - **Release gate** (`packages/release-gate/` + `scripts/release-gate.sh`) — top-level acceptance criteria for "product is done."
-- **Generic builder client** (`packages/builder/`) — a harness-level model client with Codex CLI and OpenAI backends.
+- **Generic model client** (`packages/model-client/`) — a harness-level model client with Codex CLI and OpenAI backends.
 - **Planner agent** (`packages/planner/` + `scripts/plan.sh`) — turns a product spec into ordered executable plans.
 - **Spec-fidelity checker** (`packages/fidelity-check/` + `scripts/check-fidelity.sh`) — audits delivered work against the product spec and can suspend drifted active plans.
 - **Five phase prompts** (`docs/prompts/`), **GitHub Actions auto-merge** (`.github/workflows/`), **1,200 lines of field notes** (`docs/HARNESS_ENGINEERING.md`).
 
 ## Roadmap
 
-- **v0.2** Planner agent + spec-fidelity checker + generic builder-client extraction.
+- **v0.2** Planner agent + spec-fidelity checker + generic model-client extraction.
 - **v0.3** Agent adapter infrastructure (Codex, Aider, Cursor agent mode as reference adapters).
 - **v0.4+** Spec-to-spec communication between forked harnesses; demonstrated 10-hour unattended run; greenfield fork-and-go end-to-end.
 

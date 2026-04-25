@@ -60,7 +60,7 @@ is_clean_review() {
   return 1
 }
 
-# Rate-limit detection. Delegates to @agently/run-budget via the
+# Rate-limit detection. Delegates to @fork-and-go/run-budget via the
 # scripts/rate-limit-detect.mjs wrapper so the regex lives in exactly one
 # place (plan 0052). run_task.sh itself also calls the detector inline per
 # agent phase and exits 2 with a WIP commit; this wrapper stays as a second

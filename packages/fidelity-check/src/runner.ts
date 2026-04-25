@@ -6,8 +6,8 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
-import { BUILDER_DEFAULT_MODEL, BUILDER_REPAIR_MODEL } from "@fork-and-go/builder";
-import type { ModelClient } from "@fork-and-go/builder";
+import { MODEL_CLIENT_DEFAULT_MODEL, MODEL_CLIENT_REPAIR_MODEL } from "@fork-and-go/model-client";
+import type { ModelClient } from "@fork-and-go/model-client";
 
 import { audit } from "./audit.ts";
 import { buildContext, FidelityContextError } from "./context-builder.ts";
@@ -91,8 +91,8 @@ export async function runFidelityCheck(
   }
 
   const prompts = deps.prompts ?? loadFidelityPrompts();
-  const defaultModel = deps.defaultModel ?? BUILDER_DEFAULT_MODEL;
-  const repairModel = deps.repairModel ?? BUILDER_REPAIR_MODEL;
+  const defaultModel = deps.defaultModel ?? MODEL_CLIENT_DEFAULT_MODEL;
+  const repairModel = deps.repairModel ?? MODEL_CLIENT_REPAIR_MODEL;
 
   const auditResult = await audit(context, {
     modelClient: deps.modelClient,

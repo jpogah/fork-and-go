@@ -488,7 +488,7 @@ EOF
 # Rate-limit + budget bookkeeping (plan 0052).
 #
 # `detect_rate_limit` shells out to scripts/rate-limit-detect.mjs which wraps
-# the shared @agently/run-budget regex. On a hit, we commit the current tree
+# the shared @fork-and-go/run-budget regex. On a hit, we commit the current tree
 # with a `wip: rate-limited during <phase>` message — `--no-verify` is the
 # intentional bypass for WIP commits so pre-commit hooks don't block a run we
 # already know is aborting — then exit 2 (distinct from 1 = code failure) so

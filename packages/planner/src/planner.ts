@@ -8,8 +8,8 @@
 
 import { writeFileSync } from "node:fs";
 
-import { BUILDER_DEFAULT_MODEL, BUILDER_REPAIR_MODEL } from "@fork-and-go/builder";
-import type { ModelClient, ModelUsage } from "@fork-and-go/builder";
+import { MODEL_CLIENT_DEFAULT_MODEL, MODEL_CLIENT_REPAIR_MODEL } from "@fork-and-go/model-client";
+import type { ModelClient, ModelUsage } from "@fork-and-go/model-client";
 import {
   generatePlansMarkdown,
   loadPlans,
@@ -100,8 +100,8 @@ export async function runPlanner(
   const auditSink = deps.auditSink ?? createNoopPlannerAuditSink();
   const clock = deps.clock ?? (() => new Date());
   const prompts = deps.prompts ?? loadPlannerPrompts();
-  const defaultModel = deps.defaultModel ?? BUILDER_DEFAULT_MODEL;
-  const repairModel = deps.repairModel ?? BUILDER_REPAIR_MODEL;
+  const defaultModel = deps.defaultModel ?? MODEL_CLIENT_DEFAULT_MODEL;
+  const repairModel = deps.repairModel ?? MODEL_CLIENT_REPAIR_MODEL;
   const runId = deps.generateRunId ? deps.generateRunId() : defaultRunId();
   const maxNewPlans = options.maxNewPlans ?? DEFAULT_MAX_NEW_PLANS;
 

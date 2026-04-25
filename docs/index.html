@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fork-and-Go — The harness that ships merged PRs while you sleep</title>
-  <meta name="description" content="An open-source agent-first harness: planning, review, fix, e2e-verify, merge-check. Companion to the book Agent-First Engineering by Johnpaul Ogah." />
+  <title>Fork-and-Go — The spec-to-merged-PR harness</title>
+  <meta name="description" content="An open-source agent-first harness: spec-to-plan planning, review, fix, e2e-verify, merge-check, and spec-fidelity auditing. Companion to the book Agent-First Engineering by Johnpaul Ogah." />
 
   <!-- Open Graph / LinkedIn / Twitter -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Fork-and-Go — The harness that ships merged PRs while you sleep" />
-  <meta property="og:description" content="Open-source agent-first engineering harness. Companion to the book Agent-First Engineering (2026)." />
+  <meta property="og:title" content="Fork-and-Go — The spec-to-merged-PR harness" />
+  <meta property="og:description" content="Open-source agent-first engineering harness with planner, orchestrator, release gate, and spec-fidelity checker. Companion to Agent-First Engineering (2026)." />
   <meta property="og:image" content="https://jpogah.github.io/fork-and-go/images/book-cover.png" />
   <meta property="og:url" content="https://jpogah.github.io/fork-and-go/" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -166,10 +166,11 @@
         <div class="text-xs text-ink-muted">Agent-first engineering harness</div>
       </div>
     </div>
-    <nav class="flex items-center gap-2 sm:gap-4 text-sm font-medium text-ink-muted">
+    <nav class="hidden md:flex items-center gap-2 sm:gap-4 text-sm font-medium text-ink-muted">
       <a href="#quickstart" class="hover:text-ink">Quickstart</a>
       <a href="#case-study" class="hover:text-ink">Case study</a>
       <a href="#book" class="hover:text-ink">The book</a>
+      <a href="https://www.amazon.com/dp/B0GYBLMY5L" class="hover:text-ink">Amazon</a>
       <a href="https://github.com/jpogah/fork-and-go" class="fg-button">
         <svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.17c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.85 1.24 1.85 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.77.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.94 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23.96-.27 1.98-.4 3-.41 1.02.01 2.04.14 3 .41 2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.62-2.81 5.63-5.49 5.93.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58C20.57 22.3 24 17.79 24 12.5 24 5.87 18.63.5 12 .5z"/></svg>
         Star on GitHub
@@ -179,16 +180,16 @@
 
   <!-- HERO -->
   <section class="max-w-5xl mx-auto px-6 pt-12 sm:pt-20 pb-16 sm:pb-24">
-    <span class="fg-chip mb-6">v0.1 · MIT License · 2026</span>
+    <span class="fg-chip mb-6">Planner + fidelity checker shipped · MIT License · 2026</span>
     <h1 class="text-5xl sm:text-7xl font-extrabold tracking-tight text-ink leading-[0.95] mt-4">
       The harness that ships<br/>
       merged PRs <em class="italic text-accent font-semibold">while you sleep.</em>
     </h1>
     <p class="mt-8 text-lg sm:text-xl text-ink-muted max-w-3xl font-serif leading-relaxed">
       Fork-and-Go is an open-source agent-first engineering harness. It wraps your coding agent
-      in planning, review, fix, e2e-verify, and merge-check phases — and drives each execution
-      plan from an approved spec to a merged pull request without human intervention between
-      phases. Companion to the book <em>Agent-First Engineering: A Field Report on Shipping
+      in spec-to-plan planning, review, fix, e2e-verify, merge-check, and spec-fidelity audit
+      phases — and drives each execution plan from an approved spec to a merged pull request
+      without human intervention between phases. Companion to the book <em>Agent-First Engineering: A Field Report on Shipping
       Software With AI Coding Agents</em>.
     </p>
     <div class="mt-10 flex flex-wrap gap-3">
@@ -198,6 +199,9 @@
       </a>
       <a href="https://github.com/jpogah/fork-and-go" class="fg-button">
         <span>View on GitHub</span>
+      </a>
+      <a href="https://www.amazon.com/dp/B0GYBLMY5L" class="fg-button">
+        <span>Read the book</span>
       </a>
       <a href="https://scrawl.solidrocksoftwarecloud.com" class="fg-button">
         <span>Try the case-study demo</span>
@@ -221,9 +225,8 @@
         look impossible.
       </p>
       <p class="mt-5 text-base sm:text-lg text-ink-muted font-serif leading-relaxed">
-        Fork-and-Go automates the tower. Six phases, gated by prompts and a plan graph,
-        orchestrated by a daemon that survives rate limits, races, and GitHub 500s. You supply
-        a plan; it ships a PR.
+        Fork-and-Go automates the tower. Planner, daemon, release gate, and fidelity checker
+        coordinate the loop around your coding agent. You supply a spec or plan; it ships a PR.
       </p>
     </div>
   </section>
@@ -235,6 +238,8 @@
       <div class="flex flex-col items-center gap-8">
         <!-- Linear flow -->
         <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+          <span class="fg-node">Spec</span>
+          <span class="fg-arrow">→</span>
           <span class="fg-node">Planning</span>
           <span class="fg-arrow">→</span>
           <span class="fg-node">Implement</span>
@@ -252,8 +257,43 @@
           <span class="fg-arrow-loop text-sm">↑ findings ↑</span>
         </div>
         <p class="text-sm text-ink-muted font-serif italic text-center max-w-2xl">
-          Review findings + failing Playwright tests feed back into Fix. Up to 5 passes per plan.
-          Convergence, then merge-check labels for auto-merge.
+          The planner emits executable plan files from a product spec. Review findings, failing
+          Playwright tests, and fidelity drift feed back into Fix or re-planning. Convergence,
+          then merge-check labels for auto-merge.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SHIPPED CAPABILITIES -->
+  <section class="max-w-5xl mx-auto px-6 pb-16 sm:pb-24">
+    <h3 class="text-2xl font-bold text-ink mb-6">What's shipped now</h3>
+    <div class="grid md:grid-cols-3 gap-5">
+      <div class="fg-panel p-6">
+        <span class="fg-chip mb-3">Spec → plans</span>
+        <h4 class="text-xl font-bold text-ink mt-4">Planner agent</h4>
+        <p class="mt-4 text-sm text-ink-muted font-serif leading-relaxed">
+          <code class="font-mono bg-paper-strong px-1.5 py-0.5 rounded">./scripts/plan.sh</code>
+          reads product specs, pulls repo context, and emits ordered execution plans that conform
+          to the plan-graph schema.
+        </p>
+      </div>
+      <div class="fg-panel p-6">
+        <span class="fg-chip mb-3">Model client</span>
+        <h4 class="text-xl font-bold text-ink mt-4">Generic model-client package</h4>
+        <p class="mt-4 text-sm text-ink-muted font-serif leading-relaxed">
+          <code class="font-mono bg-paper-strong px-1.5 py-0.5 rounded">@fork-and-go/model-client</code>
+          provides the harness-level model client, using Codex CLI by default with an OpenAI
+          backend available via environment variables.
+        </p>
+      </div>
+      <div class="fg-panel p-6">
+        <span class="fg-chip mb-3">Drift guard</span>
+        <h4 class="text-xl font-bold text-ink mt-4">Spec-fidelity checker</h4>
+        <p class="mt-4 text-sm text-ink-muted font-serif leading-relaxed">
+          <code class="font-mono bg-paper-strong px-1.5 py-0.5 rounded">./scripts/check-fidelity.sh</code>
+          audits delivered work against the product spec and can suspend active plans when drift
+          crosses the configured threshold.
         </p>
       </div>
     </div>
@@ -264,7 +304,7 @@
     <h3 class="text-2xl font-bold text-ink mb-6">Quickstart</h3>
     <div class="fg-panel p-6 sm:p-10">
       <p class="text-base text-ink-muted font-serif mb-5">
-        Fork the repo, bootstrap, run your first plan. The harness expects Node 22+, <code
+        Fork the repo, bootstrap, plan from a spec, then run the plan loop. The harness expects Node 22+, <code
         class="font-mono text-sm bg-paper-strong px-1.5 py-0.5 rounded">gh</code> CLI with
         auth, and the Codex or Claude Code CLI configured.
       </p>
@@ -272,16 +312,21 @@
 git clone https://github.com/jpogah/fork-and-go.git my-app
 <span class="k">cd</span> my-app && npm install
 
-<span class="c"># 2. Write your first plan (docs/exec-plans/active/0001-*.md)</span>
-<span class="c">#    — see the template in docs/exec-plans/active/TEMPLATE.md</span>
+<span class="c"># 2. Preview generated plans from the example product spec</span>
+./scripts/plan.sh docs/product-specs/EXAMPLE.md --preview
 
-<span class="c"># 3. Start the orchestrator daemon</span>
+<span class="c"># 3. Or write your first plan by hand</span>
+cp docs/exec-plans/execution-plan-template.md \
+  docs/exec-plans/active/0001-my-first-feature.md
+./scripts/plan-graph.sh validate
+
+<span class="c"># 4. Start the orchestrator daemon</span>
 ./scripts/orchestrator.sh start-bg
 
-<span class="c"># 4. Resume — it picks up the earliest eligible plan automatically</span>
+<span class="c"># 5. Resume — it picks up the earliest eligible plan automatically</span>
 curl -X POST http://localhost:4500/resume
 
-<span class="c"># 5. Watch it ship</span>
+<span class="c"># 6. Watch it ship</span>
 tail -f .orchestrator/orchestrator.log</pre>
       <div class="mt-6 flex flex-wrap gap-3">
         <a href="https://github.com/jpogah/fork-and-go#readme" class="fg-button">Full README</a>
@@ -333,7 +378,7 @@ tail -f .orchestrator/orchestrator.log</pre>
           <img src="images/book-cover.png" alt="Agent-First Engineering book cover" class="w-full rounded-lg border border-rule shadow-[2px_3px_0_#2b2623]" />
         </div>
         <div>
-          <span class="fg-chip mb-3">Book · 2026 · KDP</span>
+          <span class="fg-chip mb-3">Book · Published on Amazon · 2026</span>
           <h3 class="text-3xl font-bold text-ink mt-4 leading-tight">
             Agent-First Engineering
           </h3>
@@ -341,7 +386,7 @@ tail -f .orchestrator/orchestrator.log</pre>
             A Field Report on Shipping Software With AI Coding Agents
           </p>
           <p class="mt-6 text-base text-ink-muted font-serif leading-relaxed">
-            The field report that produced this harness. Seventeen chapters on agent
+            The field report that produced this harness is published on Amazon. Seventeen chapters on agent
             orchestration, harness engineering, and the specific frictions that shaped every
             primitive in Fork-and-Go. Grounded in three public sources: Google's <em>Agents</em>
             whitepaper (2024), Anthropic's <em>Harness Design</em> post (2025), and OpenAI's
@@ -351,9 +396,11 @@ tail -f .orchestrator/orchestrator.log</pre>
             By <strong class="text-ink">Johnpaul Ogah</strong> — engineering leader, Austin, Texas.
           </p>
           <div class="mt-6 flex flex-wrap gap-3">
-            <span class="fg-button" style="opacity: 0.85; cursor: default;">Publication window: later in 2026</span>
-            <a href="mailto:johnpaul.ogah@solidrocksoftwarecloud.com?subject=Agent-First%20Engineering%20--%20launch%20notify" class="fg-button fg-button-primary">
-              Email me at launch
+            <a href="https://www.amazon.com/dp/B0GYBLMY5L" class="fg-button fg-button-primary">
+              Buy on Amazon
+            </a>
+            <a href="mailto:johnpaul.ogah@solidrocksoftwarecloud.com?subject=Agent-First%20Engineering" class="fg-button">
+              Contact the author
             </a>
           </div>
         </div>
@@ -375,6 +422,7 @@ tail -f .orchestrator/orchestrator.log</pre>
           <li><a href="https://github.com/jpogah/fork-and-go" class="hover:text-ink underline underline-offset-2">Source on GitHub</a></li>
           <li><a href="https://github.com/jpogah/fork-and-go/blob/main/LICENSE" class="hover:text-ink underline underline-offset-2">MIT License</a></li>
           <li><a href="https://github.com/jpogah/fork-and-go/issues" class="hover:text-ink underline underline-offset-2">Issues &amp; field reports</a></li>
+          <li><a href="https://www.amazon.com/dp/B0GYBLMY5L" class="hover:text-ink underline underline-offset-2">Agent-First Engineering on Amazon</a></li>
           <li><a href="https://scrawl.solidrocksoftwarecloud.com" class="hover:text-ink underline underline-offset-2">Scrawl case-study demo</a></li>
         </ul>
       </div>
