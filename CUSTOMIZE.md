@@ -65,7 +65,7 @@ command -v gh   >/dev/null && pass "gh in PATH"   || fail "gh CLI not installed"
 
 ### `scripts/validate_repo_docs.py`
 
-The upstream version has a `REQUIRED_FILES` list checking for files like `apps/web/package.json`, `@agently/web` in deps, and project-specific conventions. Not shipped here — write your own if you want repo-structure preflight.
+The upstream version has a `REQUIRED_FILES` list checking for files like `apps/web/package.json`, workspace package names, and project-specific conventions. Not shipped here — write your own if you want repo-structure preflight.
 
 Minimum viable:
 
@@ -105,7 +105,7 @@ Two capabilities from the Tier-1 harness-engineering arc now ship as generic har
 - **The planner agent** (spec → plan sequence) lives in `packages/planner/` + `scripts/plan.{sh,ts}`. It takes a product spec and emits an ordered sequence of executable plans.
 - **The spec-fidelity checker** lives in `packages/fidelity-check/` + `scripts/check-fidelity.{sh,ts}`. It periodically audits whether the harness's delivered work matches the product spec and can auto-suspend active plans on drift.
 
-Both use the generic `@fork-and-go/builder` model-client package. The default backend shells out through the Codex CLI; set `BUILDER_LLM_CLIENT=openai` and `OPENAI_API_KEY` to use the OpenAI backend.
+Both use the generic `@fork-and-go/model-client` model-client package. The default backend shells out through the Codex CLI; set `FORK_AND_GO_LLM_CLIENT=openai` and `OPENAI_API_KEY` to use the OpenAI backend.
 
 ---
 

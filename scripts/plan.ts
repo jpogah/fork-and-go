@@ -4,7 +4,7 @@
 // Usage:
 //   ./scripts/plan.sh <spec-file> [--preview] [--max-new-plans N]
 //
-// The CLI is intentionally thin: it parses args, builds a live OpenAI client
+// The CLI is intentionally thin: it parses args, builds a live model client
 // from env, wires a logger-backed audit sink, and defers to runPlanner.
 import path from "node:path";
 import process from "node:process";
@@ -13,10 +13,10 @@ import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 
 import {
-  BUILDER_DEFAULT_MODEL,
-  BUILDER_REPAIR_MODEL,
+  MODEL_CLIENT_DEFAULT_MODEL,
+  MODEL_CLIENT_REPAIR_MODEL,
   createModelClient,
-} from "@fork-and-go/builder";
+} from "@fork-and-go/model-client";
 import {
   createLoggerPlannerAuditSink,
   DEFAULT_MAX_NEW_PLANS,
@@ -52,11 +52,11 @@ function usage(): string {
     "  -h, --help             Show this help.",
     "",
     "Environment:",
-    "  BUILDER_LLM_CLIENT     `cli` (default, spawns `codex exec`) or `openai`",
+    "  FORK_AND_GO_LLM_CLIENT     `cli` (default, spawns `codex exec`) or `openai`",
     "                         (requires OPENAI_API_KEY).",
-    "  OPENAI_API_KEY         Required only when BUILDER_LLM_CLIENT=openai.",
-    "  PLANNER_MODEL          Default model (falls back to BUILDER_MODEL).",
-    "  PLANNER_REPAIR_MODEL   Repair model (falls back to BUILDER_REPAIR_MODEL).",
+    "  OPENAI_API_KEY         Required only when FORK_AND_GO_LLM_CLIENT=openai.",
+    "  PLANNER_MODEL          Default model (falls back to FORK_AND_GO_MODEL).",
+    "  PLANNER_REPAIR_MODEL   Repair model (falls back to FORK_AND_GO_REPAIR_MODEL).",
   ].join("\n");
 }
 
@@ -146,12 +146,12 @@ async function main(): Promise<number> {
 
   const defaultModel =
     process.env.PLANNER_MODEL ??
-    process.env.BUILDER_MODEL ??
-    BUILDER_DEFAULT_MODEL;
+    process.env.FORK_AND_GO_MODEL ??
+    MODEL_CLIENT_DEFAULT_MODEL;
   const repairModel =
     process.env.PLANNER_REPAIR_MODEL ??
-    process.env.BUILDER_REPAIR_MODEL ??
-    BUILDER_REPAIR_MODEL;
+    process.env.FORK_AND_GO_REPAIR_MODEL ??
+    MODEL_CLIENT_REPAIR_MODEL;
 
   let modelClient;
   try {

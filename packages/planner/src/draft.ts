@@ -10,7 +10,7 @@ import {
   type ModelRequest,
   type ModelResponse,
   type ModelUsage,
-} from "@fork-and-go/builder";
+} from "@fork-and-go/model-client";
 
 import type { PlanProposal } from "./schemas.ts";
 
@@ -122,7 +122,7 @@ type ParseResult = { ok: true; body: string } | { ok: false; error: string };
 function parseDraftOutput(text: string): ParseResult {
   // Production responses come through OpenAI Chat Completions with
   // `response_format: { type: "json_object" }` forced on every request
-  // (see packages/builder/src/model-client.ts), so the live LLM always
+  // (see packages/model-client/src/model-client.ts), so the live LLM usually
   // returns a JSON object. The draft system prompt pins the shape to
   // `{ "body": "<markdown>" }` — anything else is a repair candidate. We
   // still accept plain markdown as a fallback so test fixtures and future

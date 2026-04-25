@@ -84,11 +84,18 @@ There is a closing-loop observation worth sharing up front. On April 22, 2026 �
 
 ## What's in the repository today
 
-`github.com/[org]/fork-and-go` ships with:
+`github.com/jpogah/fork-and-go` ships with:
 
+- **The planner agent** (`packages/planner/`, `scripts/plan.sh`): reads a product spec and emits an ordered sequence of executable plans.
 - **The runner** (`scripts/run_task.sh`): phase sequencing, tool-scope enforcement, rate-limit detection, resume-safe invocation.
 - **The phase prompts** (`docs/prompts/*.md`): five prompts — feature-implementation, self-review, fix-review-findings, prepare-pr, merge-readiness — each carefully iterated against real plans. Copy them as-is for your first several plans; tune after you've seen real convergence behavior on your own workload.
 - **The plan-graph library** (`packages/plan-graph/`): YAML frontmatter schema, resolver, dependency-graph validator, and `PLANS.md` drift-check. Plans are machine-readable first-class artifacts.
+- **The orchestrator daemon** (`apps/orchestrator/`, `scripts/orchestrator.sh`): persistent state, pause/resume/stop/freeze controls, rate-limit backoff, and merge polling.
+- **The context-ingest package** (`packages/context-ingest/`, `scripts/context.sh`): repo-local context drops with scope grammar and prompt-injection-aware rendering.
+- **The budget governance package** (`packages/run-budget/`): token tracking, cost estimates, budget raise requests, and rate-limit detection.
+- **The release gate** (`packages/release-gate/`, `scripts/release-gate.sh`): top-level acceptance criteria for deciding when the product is done.
+- **The spec-fidelity checker** (`packages/fidelity-check/`, `scripts/check-fidelity.sh`): audits delivered work against the product spec and can suspend active plans on drift.
+- **The generic model client** (`packages/model-client/`): a harness-level model client with Codex CLI and OpenAI backends.
 - **The rescue primitive** (`scripts/run_task_loop.sh`): recovers plans whose review budget exhausts.
 - **The plan template and PR template**: the structural contracts every plan and PR follow.
 - **The GitHub Actions auto-merge workflow**: label-triggered squash-merge gated on CI.
@@ -117,16 +124,19 @@ Concretely versus the tools people already know:
 
 ```bash
 # 1. Clone, install deps
-git clone https://github.com/[org]/fork-and-go.git my-project
+git clone https://github.com/jpogah/fork-and-go.git my-project
 cd my-project
-cd packages/plan-graph && npm install && cd ../..
+npm install
 
-# 2. Write a plan
+# 2. Preview generated plans from the example spec
+./scripts/plan.sh docs/product-specs/EXAMPLE.md --preview
+
+# 3. Or write a plan by hand
 cp docs/exec-plans/execution-plan-template.md \
    docs/exec-plans/active/0001-my-first-feature.md
 $EDITOR docs/exec-plans/active/0001-my-first-feature.md
 
-# 3. Run it
+# 4. Run it
 ./scripts/run_task.sh 0001 --skip-e2e
 ```
 
@@ -140,15 +150,15 @@ If you want the full story — the primitive-by-primitive defenses, the field na
 
 *Agent-First Engineering: A Field Report on Shipping Software With AI Coding Agents.* ~90,000 words. Seventeen chapters across five parts (the setup, the primitives, the field narratives, the meta-lessons, the playbook). Three appendices (the prompts verbatim with annotations, the plan template with a worked example, the glossary). Bibliography of exactly three sources — the three public documents above — engaged carefully rather than decoratively.
 
-The book is going up on Kindle Direct Publishing in the next few weeks. I'll post here when it ships.
+The book is published on Amazon: <https://www.amazon.com/dp/B0GYBLMY5L>.
 
 ## What's next
 
-Fork-and-Go v0.1 is the harness as-built. The public roadmap (`ROADMAP.md` in the repo) lays out the next several releases:
+Fork-and-Go now includes the full Tier-1 harness arc in the repo: planner, daemon, context ingestion, budget governance, spec-fidelity checker, release gate, and the generic model client that removes the old product-specific coupling. The public roadmap (`ROADMAP.md` in the repo) lays out the next several releases:
 
-- **v0.2** — community-driven calibration. Better-tuned prompts across more plan classes. Clearer customization story for project-shaped scripts. Thorough integration-test documentation for the first-fork experience.
-- **v0.3** — spec-to-PR documentation. The planner agent (plan 0049 in the upstream harness) is the capability that lets an operator write a high-level spec and get back a sequence of plans. The Fork-and-Go release will document the planner's use against several spec shapes, once the real-world calibration is in.
-- **v0.4** — adapter infrastructure. The harness is agent-agnostic by design; a clean adapter interface for Codex, Cursor agent mode, Aider, and others is v0.4's scope.
+- **v0.3** — adapter infrastructure. The harness is agent-agnostic by design; a clean adapter interface for Codex, Cursor agent mode, Aider, and others is the next hardening target.
+- **v0.4** — spec-to-spec communication between forked harnesses, so teams can share learnings and primitives without either maintainer reading every plan in the other's repo.
+- **v0.5+** — calibration against more external forks and longer unattended runs.
 
 The sixth-gap research question — spec-to-spec communication between forked harnesses, so that two teams running Fork-and-Go can share learnings and primitives without either maintainer reading every plan in the other's repo — is open research. I don't have an architecture for it. Whoever ships it first contributes a primitive at least as important as anything in the Tier-1 arc I shipped yesterday.
 
@@ -159,9 +169,9 @@ If you're already trying to ship software through AI coding agents and hitting t
 The harness gets better by getting used. Every friction you surface, in your fork, informs the next primitive. This is how the field advances.
 
 **Links:**
-- Repo: `github.com/[org]/fork-and-go`
+- Repo: `github.com/jpogah/fork-and-go`
 - The field journal: `docs/HARNESS_ENGINEERING.md` in the repo
-- The book (preorder info when available): [URL]
+- The book: <https://www.amazon.com/dp/B0GYBLMY5L>
 - My writing on agent-first engineering: [blog URL]
 - Direct feedback: **johnpaul.ogah@solidrocksoftwarecloud.com**
 

@@ -1,19 +1,16 @@
 // Subprocess-based ModelClient that delegates to the Codex CLI.
 //
-// Fork-and-Go positioning (plan 0055): forkers install `codex`, log in, and
-// the planner + fidelity-check just work — no second API key required. The
-// client spawns `codex exec --json --output-schema <file> --model <model>`,
-// pipes the formatted prompt to stdin, and parses the JSONL event stream on
-// stdout to recover the agent's final message plus token usage.
+// Fork-and-Go positioning: forkers install `codex`, log in, and the planner +
+// fidelity-check can run without a second API key. The client spawns
+// `codex exec --json --model <model>`, pipes the formatted prompt to stdin,
+// and parses the JSONL event stream on stdout to recover the agent's final
+// message plus token usage.
 //
 // Error mapping:
 //   - non-zero exit    → CliModelClientError carrying stderr
 //   - timeout          → CliModelClientError with a timeout-specific message
 //   - spawn failure    → CliModelClientError (e.g. ENOENT when codex is
 //     missing from PATH)
-//
-// The temp schema file is cleaned up in a `finally` block so error paths do
-// not leak artifacts in $TMPDIR.
 //
 // Token accounting comes from Codex's `turn.completed.usage` event; when the
 // event is absent (older CLI versions, killed child) we record zeros and emit

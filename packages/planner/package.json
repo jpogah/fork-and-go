@@ -13,7 +13,7 @@
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@fork-and-go/builder": "*",
+    "@fork-and-go/model-client": "*",
     "@fork-and-go/context-ingest": "*",
     "@fork-and-go/plan-graph": "*",
     "yaml": "*",

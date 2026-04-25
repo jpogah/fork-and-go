@@ -1,8 +1,7 @@
 // Decompose phase: the LLM reads the planning context + system prompt and
 // emits a JSON array of proposals. The shape is strict Zod-validated; a
-// malformed response triggers one repair retry (mirroring the Builder's
-// pattern in interviewer.ts). On a second failure we hard-stop — the caller
-// surfaces a `planning.failed` audit event.
+// malformed response triggers one repair retry. On a second failure we
+// hard-stop — the caller surfaces a `planning.failed` audit event.
 
 import { ZodError } from "zod";
 
@@ -11,7 +10,7 @@ import {
   type ModelRequest,
   type ModelResponse,
   type ModelUsage,
-} from "@fork-and-go/builder";
+} from "@fork-and-go/model-client";
 
 import {
   decomposeOutputSchema,

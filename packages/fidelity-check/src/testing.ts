@@ -7,7 +7,7 @@ import type {
   ModelRequest,
   ModelResponse,
   ModelUsage,
-} from "@fork-and-go/builder";
+} from "@fork-and-go/model-client";
 
 export function scriptedModelClient(
   responses: ReadonlyArray<string>,

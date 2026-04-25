@@ -41,10 +41,10 @@ Field rules:
 - `slug`: kebab-case, lowercase ASCII letters, digits, hyphens. No leading
   or trailing hyphens. Becomes part of the filename.
 - `title`: concise, sentence-case, mirrors the `## Goal` line.
-- `phase`: pick from the phases the existing plans use (Foundation,
-  Connectors, Agent Authoring, Builder, Runtime, Executors, Trust, Billing,
-  Ops, Brand polish, Demo enablement, Verification, CMO, Harness,
-  Marketing). Make up a new phase only if no existing phase fits.
+- `phase`: prefer a phase already present in the existing plan list. If no
+  existing phase fits, choose a clear generic phase such as Foundation,
+  Product, Frontend, Backend, Integrations, Data, Runtime, Ops, Verification,
+  Harness, Docs, or Marketing.
 - `depends_on`: ids of plans that must be `completed` before this one is
   eligible. Reference existing plan ids OR ids of earlier proposals in
   this same output. Never reference an id that doesn't exist in the
@@ -66,13 +66,11 @@ Field rules:
 
 ## Plan style conventions (match these)
 
-The repository follows a "three-layer" ship pattern for new verticals:
-**connector → executor → template**. A connector plan lands OAuth and a
-client for a new provider. An executor plan lands the action kinds the
-runtime can dispatch. A template plan ships a ready-to-activate Agent Spec
-that stitches the executor actions into a visible product slice. When the
-spec calls for a new vertical, default to proposing all three plans with
-`depends_on` edges connector → executor → template.
+Decompose work along real delivery boundaries in the target repo. A typical
+new product vertical may need separate plans for data/storage, integration
+or adapter work, user-facing workflow, validation, and documentation. Only
+use provider/client/executor/template language when the product spec or
+existing repository already uses those concepts.
 
 Other conventions:
 

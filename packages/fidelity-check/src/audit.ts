@@ -10,7 +10,7 @@ import {
   type ModelRequest,
   type ModelResponse,
   type ModelUsage,
-} from "@fork-and-go/builder";
+} from "@fork-and-go/model-client";
 
 import type { FidelityContext } from "./context-builder.ts";
 import { auditOutputSchema, type AuditOutput } from "./schemas.ts";

@@ -8,7 +8,7 @@ and as a reference for anyone forking the harness to a new project.
 entry to the _"Lessons by plan"_ section below: one short paragraph describing
 what the plan taught us that wasn't obvious going in, plus the specific code /
 convention change it produced. Periodically distill repeat patterns into
-_"Meta-lessons"_. Before starting a new plan family (Builder, Runtime,
+_"Meta-lessons"_. Before starting a new plan family (Authoring, Runtime,
 Billing), re-read this doc.
 
 ---
@@ -387,7 +387,7 @@ timeout.
 
 ### E2E gate ≠ first-run readiness
 
-The e2e-verify gate runs against `agently_e2e` with its own bootstrap and
+The e2e-verify gate runs against `app_e2e` with its own bootstrap and
 mocks every third-party OAuth. It proves behavior against a known-good
 fixture; it does not prove that a fresh fork's _real_ environment is wired
 up to ship. The 0012 post-landing UAT on 2026-04-20 — our first full
@@ -395,8 +395,8 @@ sign-in-to-save-an-agent run against a live Google OAuth app — exposed
 three classes of failure that every prior e2e gate had passed cleanly:
 
 - **Dev migrations drift.** Migration 0005 never ran against
-  `agently_dev`; `/app/agents` threw "relation agents does not exist" on
-  first visit. The e2e harness's own `agently_e2e` bootstrap had hidden
+  `app_dev`; `/app/agents` threw "relation agents does not exist" on
+  first visit. The e2e harness's own `app_e2e` bootstrap had hidden
   the gap.
 - **Silent connector catches.** The Gmail callback's `catch {}` block
   swallowed a Gmail-API-disabled 403 and redirected with a generic
@@ -815,18 +815,18 @@ Runtime-phase opener landed in one pipeline run. — `428aaa7`
 
 ### 0014 Enable Natural-Language Spec Editing _(f904606)_
 
-The first Builder plan that exercises the LLM endpoint on existing
+The first authoring plan that exercises the LLM endpoint on existing
 data instead of a blank-slate interview. Shipped `/app/agents/:id/edit`
 (input row + collapsible field-level diff + edit history with
-Restore), a new `editSpec` entry point in `packages/builder` that
-turns a plain-language instruction into a JSON-Patch turn against the
-current spec, the `SpecDiff` data model + renderer in
-`packages/agent-spec`, and `/api/agents/:id/edit` + `/api/agents/:id/restore`
-routes that re-run guardrails and write a new `agent_spec_versions`
+Restore), a new `editDefinition` entry point in `packages/agent-authoring` that
+turns a plain-language instruction into a structured edit against the
+current definition, the `DefinitionDiff` data model + renderer in
+`packages/agent-definition`, and `/api/agents/:id/edit` + `/api/agents/:id/restore`
+routes that re-run guardrails and write a new `definition_versions`
 row on approval. 24 files, 3832 insertions. Converged on review pass
 3 after two substantive fix cycles.
 
-**Review pass 1 Medium — Restore bypassed the Builder guardrail
+**Review pass 1 Medium — Restore bypassed the authoring guardrail
 pipeline.** The implementer's first cut had Restore POST the target
 version's spec straight to `/api/agents/[id]/versions`, which only
 runs the Zod schema. A prior version with weaker red-lines could be
@@ -858,16 +858,16 @@ that had unit tests but not the specific failing inputs. Worth
 remembering: **route-level integration tests catch what
 package-level unit tests miss**, and they're cheap to add. The
 "shared interface, plug a new feature in" pattern paid a third time
-(0012→0013→0014) — `editSpec` reused 0013's guardrail/audit/repair
+(0012→0013→0014) — `editDefinition` reused 0013's guardrail/audit/repair
 machinery without changes to either side. — `f904606`
 
-### 0035 Swap Builder Meta-Agent to GPT-5.4 _(123a836)_
+### 0035 Swap authoring meta-agent to GPT-5.4 _(123a836)_
 
 Provider swap: Anthropic (Claude Sonnet/Opus) → OpenAI (GPT-5.4-mini /
 GPT-5.4) behind the same `ModelClient` interface 0013 shipped.
 Contract, guardrails, audit events, repair loop, and feature flag are
 unchanged — the client wiring and env vars are the only surface that
-moved. `BUILDER_MODEL` / `BUILDER_REPAIR_MODEL` env overrides let
+moved. `AUTHORING_MODEL` / `AUTHORING_REPAIR_MODEL` env overrides let
 operators retune the tier without a code change. Converged on review
 pass 3 after one substantive fix cycle.
 
@@ -888,18 +888,18 @@ interface (one file, one factory, no provider-typed fields upstream),
 a product-direction swap is a one-PR move — **but stubbed tests can't
 catch provider-side API contract violations.** The reviewer substituted
 for the missing integration test and flagged a bug that would have
-turned every real builder turn into a 400. This is the second data
+turned every real authoring turn into a 400. This is the second data
 point (after 0013) that the reviewer's breadth compensates for gaps
 in the test matrix. Seventh consecutive clean-pipeline run. — `123a836`
 
-### 0013 Wire the Agent Builder Meta-Agent _(7f84eed)_
+### 0013 Wire the agent authoring meta-agent _(7f84eed)_
 
-The brain-swap of plan 0012. Shipped a new `packages/builder` package
-(interviewer, guardrails, patch validation with Zod re-application,
+The brain-swap of plan 0012. Shipped a new `packages/agent-authoring` package
+(authoring flow, guardrails, patch validation with Zod re-application,
 repair loop, audit sink, model client, feature flag, snapshot tests),
 `/api/agents/builder/turn` route with owner-role gating and payload
-ceilings, and swapped `/app/agents/new` to the LLM-backed interviewer
-behind `builder.llm_enabled` (dev-on, prod-off). 28 files, 4044
+ceilings, and swapped `/app/agents/new` to the LLM-backed authoring flow
+behind `authoring.llm_enabled` (dev-on, prod-off). 28 files, 4044
 insertions — largest plan shipped so far. Converged on review pass 3
 after two fix cycles. Provider was Anthropic (Claude Sonnet default,
 Opus on repair) at land; plan 0035 later swapped it to OpenAI
@@ -960,13 +960,13 @@ this class. It's the first plan where the UAT-to-plan pipeline
 completed inside a single working session. —
 `00e4e34`
 
-### 0012 Build Agent Builder conversational UI _(50211c3)_
+### 0012 Build agent authoring conversational UI _(50211c3)_
 
 Largest UI plan in the roadmap. Shipped the two-pane `/app/agents/new`
-Builder: chat component with quick-reply chips and inline-edit, live
+Authoring: chat component with quick-reply chips and inline-edit, live
 spec preview pane, state-machine reducer with seven interview states,
-deterministic scripted interviewer (a `ScriptedInterviewer`
-implementation of the `Interviewer` interface that 0013 will swap for
+deterministic scripted authoring flow (a test implementation of the
+interface that 0013 will swap for
 a Claude-backed version). Converged `No blocking findings.` on pass 2. Fourth consecutive clean-pipeline run.
 
 **Takeaway**: the largest single UI plan remaining landed on the same
@@ -981,7 +981,7 @@ transplant the LLM in a separate plan. — `50211c3`
 
 ### 0011 Ship agent template library _(cf8e295)_
 
-First full product plan that touched both `packages/agent-spec` and
+First full product plan that touched both `packages/agent-definition` and
 a net-new UI surface (`/app/agents/new` list + detail + create flow).
 Three vertical templates shipped (Real Estate, Law Firm, Clinic) with
 role-to-template mapping and missing-connection banners. Review took
@@ -997,12 +997,12 @@ surface, one extra review pass — still zero human keystrokes between
 fire-off and merge. Pattern is holding across plan classes. —
 `cf8e295`
 
-### 0010 Define Agent Spec schema and storage _(a6a4e8e)_
+### 0010 Define agent definition schema and storage _(a6a4e8e)_
 
-First central-artifact plan (the Agent Spec is the contract every
-downstream Builder / Runtime / Trust plan reads or writes). Shipped
-`packages/agent-spec` with Zod validators, the `agents` /
-`agent_spec_versions` tables, workspace-scoped repository functions,
+First central-artifact plan (the agent definition is the contract every
+downstream Authoring / Runtime / Trust plan reads or writes). Shipped
+`packages/agent-definition` with Zod validators, the `agents` /
+`definition_versions` tables, workspace-scoped repository functions,
 `/api/agents/*` CRUD endpoints with structured validation-error
 surfacing. Converged `No blocking findings.` on pass 1; second
 consecutive clean-pipeline run (no human keystrokes between
@@ -1176,7 +1176,7 @@ What we haven't solved, honestly:
   reconstruct from `git status` and the plan file which Execute step
   was in flight and what's already done. Seen concretely on 0023: the
   implement phase landed ~4.8k LOC of approval-queue code (the
-  `@agently/approvals` package, route, API handlers, worker entries),
+  `@product/approvals` package, route, API handlers, worker entries),
   hit the rate limit after the first preflight attempt, and resumed in
   a new session that had to re-derive state. The resume session also
   defaulted to Claude Code's cautious "ask before acting" posture

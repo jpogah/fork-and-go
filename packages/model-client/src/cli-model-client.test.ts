@@ -308,7 +308,7 @@ describe("createCliModelClient", () => {
 });
 
 describe("createModelClient factory", () => {
-  it("returns a CliModelClient when BUILDER_LLM_CLIENT is unset (AC 1)", async () => {
+  it("returns a CliModelClient when FORK_AND_GO_LLM_CLIENT is unset (AC 1)", async () => {
     const { createModelClient } = await import("./model-client-factory.ts");
     const client = createModelClient({ env: {} });
     expect(client).toBeDefined();
@@ -329,14 +329,14 @@ describe("createModelClient factory", () => {
     expect(record.command).toBe("codex");
   });
 
-  it("returns a CliModelClient when BUILDER_LLM_CLIENT=cli (AC 2)", async () => {
+  it("returns a CliModelClient when FORK_AND_GO_LLM_CLIENT=cli (AC 2)", async () => {
     const { createModelClient } = await import("./model-client-factory.ts");
     const { spawnFn, record } = makeFakeSpawn({
       stdout: happyStdout("ok", { input: 1, output: 1 }),
       exitCode: 0,
     });
     const client = createModelClient({
-      env: { BUILDER_LLM_CLIENT: "cli" },
+      env: { FORK_AND_GO_LLM_CLIENT: "cli" },
       cli: { spawnFn },
     });
     await client.complete({
@@ -346,7 +346,7 @@ describe("createModelClient factory", () => {
     expect(record.command).toBe("codex");
   });
 
-  it("returns an OpenAI client when BUILDER_LLM_CLIENT=openai + OPENAI_API_KEY is set (AC 3)", async () => {
+  it("returns an OpenAI client when FORK_AND_GO_LLM_CLIENT=openai + OPENAI_API_KEY is set (AC 3)", async () => {
     const { createModelClient } = await import("./model-client-factory.ts");
     const fakeOpenAI = {
       chat: {
@@ -363,7 +363,7 @@ describe("createModelClient factory", () => {
       },
     };
     const client = createModelClient({
-      env: { BUILDER_LLM_CLIENT: "openai", OPENAI_API_KEY: "sk-test" },
+      env: { FORK_AND_GO_LLM_CLIENT: "openai", OPENAI_API_KEY: "sk-test" },
       openai: { client: fakeOpenAI },
     });
     await client.complete({
@@ -373,25 +373,25 @@ describe("createModelClient factory", () => {
     expect(fakeOpenAI.chat.completions.create).toHaveBeenCalledOnce();
   });
 
-  it("throws at construction when BUILDER_LLM_CLIENT=openai and OPENAI_API_KEY is unset (AC 4)", async () => {
+  it("throws at construction when FORK_AND_GO_LLM_CLIENT=openai and OPENAI_API_KEY is unset (AC 4)", async () => {
     const { createModelClient } = await import("./model-client-factory.ts");
     expect(() =>
-      createModelClient({ env: { BUILDER_LLM_CLIENT: "openai" } }),
-    ).toThrow(/BUILDER_LLM_CLIENT=openai.*OPENAI_API_KEY/);
+      createModelClient({ env: { FORK_AND_GO_LLM_CLIENT: "openai" } }),
+    ).toThrow(/FORK_AND_GO_LLM_CLIENT=openai.*OPENAI_API_KEY/);
   });
 
-  it("rejects unknown BUILDER_LLM_CLIENT values with a clear error", async () => {
+  it("rejects unknown FORK_AND_GO_LLM_CLIENT values with a clear error", async () => {
     const { createModelClient } = await import("./model-client-factory.ts");
     expect(() =>
-      createModelClient({ env: { BUILDER_LLM_CLIENT: "ollama" } }),
-    ).toThrow(/BUILDER_LLM_CLIENT must be "cli" or "openai"/);
+      createModelClient({ env: { FORK_AND_GO_LLM_CLIENT: "ollama" } }),
+    ).toThrow(/FORK_AND_GO_LLM_CLIENT must be "cli" or "openai"/);
   });
 
-  it("honors BUILDER_CLI_TIMEOUT_MS from env", async () => {
+  it("honors FORK_AND_GO_CLI_TIMEOUT_MS from env", async () => {
     const { createModelClient } = await import("./model-client-factory.ts");
     const { spawnFn, record } = makeFakeSpawn({ suppressClose: true });
     const client = createModelClient({
-      env: { BUILDER_CLI_TIMEOUT_MS: "25" },
+      env: { FORK_AND_GO_CLI_TIMEOUT_MS: "25" },
       cli: { spawnFn },
     });
     let caught: unknown;
