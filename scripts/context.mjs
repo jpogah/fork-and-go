@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Operator-facing CLI for the context drop folder + the runner's rendering
 // helper. Both invocations share the same loader, matcher, and size caps
-// from @fork-and-go/context-ingest so the prompt the planner + runner see is
+// from @harness/context-ingest so the prompt the planner + runner see is
 // identical to the preview an operator can request from this CLI.
 //
 // Usage:
@@ -34,7 +34,7 @@ import {
   isValidScope,
   loadAndRender,
   loadContextInbox,
-} from "@fork-and-go/context-ingest";
+} from "@harness/context-ingest";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
 const CONTEXT_ROOT = path.join(REPO_ROOT, "docs", "context");

@@ -6,19 +6,20 @@
 // the required section headings." A malformed draft is a repair candidate.
 
 import {
-  type ModelClient,
-  type ModelRequest,
-  type ModelResponse,
-  type ModelUsage,
-} from "@fork-and-go/model-client";
+  type CompletionClient as ModelClient,
+  type CompletionRequest as ModelRequest,
+  type CompletionResponse as ModelResponse,
+  type CompletionUsage as ModelUsage,
+} from "@harness/agent-runner";
 
 import type { PlanProposal } from "./schemas.ts";
 
 export interface DraftDeps {
   modelClient: ModelClient;
   systemPrompt: string;
-  defaultModel: string;
-  repairModel: string;
+  // When undefined, the underlying agent SDK picks its provider-default model.
+  defaultModel?: string;
+  repairModel?: string;
   maxRepairAttempts?: number;
 }
 
@@ -200,7 +201,7 @@ function bodyHasHeading(body: string, heading: string): boolean {
 function buildDraftRequest(
   proposal: PlanProposal,
   systemPrompt: string,
-  model: string,
+  model: string | undefined,
 ): ModelRequest {
   const payload = {
     id: proposal.id,
@@ -224,7 +225,7 @@ function buildDraftRequest(
   return {
     system: systemPrompt,
     messages: [userMessage],
-    model,
+    ...(model !== undefined ? { model } : {}),
   };
 }
 
@@ -232,11 +233,11 @@ function buildRepairRequest(
   base: ModelRequest,
   lastResponseText: string,
   lastError: string,
-  repairModel: string,
+  repairModel: string | undefined,
 ): ModelRequest {
   return {
     ...base,
-    model: repairModel,
+    ...(repairModel !== undefined ? { model: repairModel } : {}),
     messages: [
       ...base.messages,
       { role: "assistant", content: lastResponseText },

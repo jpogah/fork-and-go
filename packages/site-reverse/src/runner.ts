@@ -1,14 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import type { ModelClient } from "@fork-and-go/model-client";
+import type { CompletionClient as ModelClient } from "@harness/agent-runner";
 import {
   DEFAULT_MAX_NEW_PLANS,
   createLoggerPlannerAuditSink,
   runPlanner,
   type PlannerRunOutcome,
   type PlannerRunOptions,
-} from "@fork-and-go/planner";
+} from "@harness/planner";
 
 import {
   analyzeCapturedSite as defaultAnalyzeCapturedSite,

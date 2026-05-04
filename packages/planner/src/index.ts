@@ -1,4 +1,4 @@
-// Public surface of @fork-and-go/planner. Everything downstream (CLI, tests)
+// Public surface of @harness/planner. Everything downstream (CLI, tests)
 // imports from here so the internal layout can move without breaking call
 // sites.
 

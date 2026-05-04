@@ -6,7 +6,7 @@
 // None of these helpers touch the filesystem. Caller threads in the proposal
 // set + existing plans.
 
-import { validateGraph, type Plan } from "@fork-and-go/plan-graph";
+import { validateGraph, type Plan } from "@harness/plan-graph";
 
 import type { PlanProposal } from "./schemas.ts";
 

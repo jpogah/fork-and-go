@@ -8,7 +8,7 @@ import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
 
-import { loadPlans, type Plan } from "@fork-and-go/plan-graph";
+import { loadPlans, type Plan } from "@harness/plan-graph";
 
 import { checkAcceptance } from "./checker.ts";
 import {

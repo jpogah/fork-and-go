@@ -12,7 +12,7 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { loadPlans, validateGraph } from "@fork-and-go/plan-graph";
+import { loadPlans, validateGraph } from "@harness/plan-graph";
 
 import { createInMemoryPlannerAuditSink, runPlanner } from "./index.ts";
 import { scriptedModelClient } from "./testing.ts";

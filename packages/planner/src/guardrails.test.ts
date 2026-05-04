@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Plan } from "@fork-and-go/plan-graph";
+import type { Plan } from "@harness/plan-graph";
 
 import {
   DEFAULT_MAX_NEW_PLANS,

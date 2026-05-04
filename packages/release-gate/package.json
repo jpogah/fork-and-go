@@ -1,5 +1,5 @@
 {
-  "name": "@fork-and-go/release-gate",
+  "name": "@harness/release-gate",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@fork-and-go/plan-graph": "*"
+    "@harness/plan-graph": "*"
   },
   "devDependencies": {
     "typescript": "*"

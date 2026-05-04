@@ -1,13 +1,13 @@
-// Test-only helpers. Mirrors @fork-and-go/planner/testing so fidelity-check
+// Test-only helpers. Mirrors @harness/planner/testing so fidelity-check
 // tests can reuse the scripted model-client pattern without a cross-package
 // dev dependency.
 
 import type {
-  ModelClient,
-  ModelRequest,
-  ModelResponse,
-  ModelUsage,
-} from "@fork-and-go/model-client";
+  CompletionClient as ModelClient,
+  CompletionRequest as ModelRequest,
+  CompletionResponse as ModelResponse,
+  CompletionUsage as ModelUsage,
+} from "@harness/agent-runner";
 
 export function scriptedModelClient(
   responses: ReadonlyArray<string>,

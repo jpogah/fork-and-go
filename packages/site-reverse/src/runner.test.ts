@@ -3,11 +3,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import type {
-  ModelClient,
-  ModelRequest,
-  ModelResponse,
-  ModelUsage,
-} from "@fork-and-go/model-client";
+  CompletionClient as ModelClient,
+  CompletionRequest as ModelRequest,
+  CompletionResponse as ModelResponse,
+  CompletionUsage as ModelUsage,
+} from "@harness/agent-runner";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { runSiteReverse } from "./runner.ts";

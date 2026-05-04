@@ -1,5 +1,5 @@
 // Entry point for the planner CLI. Invoked via scripts/plan.sh, which wraps
-// `tsx` so we can import the TypeScript source of @fork-and-go/planner directly.
+// `tsx` so we can import the TypeScript source of @harness/planner directly.
 //
 // Usage:
 //   ./scripts/plan.sh <spec-file> [--preview] [--max-new-plans N]
@@ -13,16 +13,15 @@ import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 
 import {
-  MODEL_CLIENT_DEFAULT_MODEL,
-  MODEL_CLIENT_REPAIR_MODEL,
-  createModelClient,
-} from "@fork-and-go/model-client";
+  createAgentRunner,
+  wrapAgentAsCompletionClient,
+} from "@harness/agent-runner";
 import {
   createLoggerPlannerAuditSink,
   DEFAULT_MAX_NEW_PLANS,
   runPlanner,
-} from "@fork-and-go/planner";
-import { parseAcceptanceFile } from "@fork-and-go/release-gate";
+} from "@harness/planner";
+import { parseAcceptanceFile } from "@harness/release-gate";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
 const ACTIVE_DIR = path.join(REPO_ROOT, "docs", "exec-plans", "active");
@@ -52,11 +51,10 @@ function usage(): string {
     "  -h, --help             Show this help.",
     "",
     "Environment:",
-    "  FORK_AND_GO_LLM_CLIENT     `cli` (default, spawns `codex exec`) or `openai`",
-    "                         (requires OPENAI_API_KEY).",
-    "  OPENAI_API_KEY         Required only when FORK_AND_GO_LLM_CLIENT=openai.",
-    "  PLANNER_MODEL          Default model (falls back to FORK_AND_GO_MODEL).",
-    "  PLANNER_REPAIR_MODEL   Repair model (falls back to FORK_AND_GO_REPAIR_MODEL).",
+    "  HARNESS_AGENT_PROVIDER  `claude` (default) or `codex`. Picks the SDK.",
+    "  HARNESS_AGENT_MODEL     Override the agent model (falls through to SDK default).",
+    "  PLANNER_MODEL           Planner-specific model override.",
+    "  PLANNER_REPAIR_MODEL    Repair-pass model override (defaults to PLANNER_MODEL).",
   ].join("\n");
 }
 
@@ -145,26 +143,19 @@ async function main(): Promise<number> {
   }
 
   const defaultModel =
-    process.env.PLANNER_MODEL ??
-    process.env.FORK_AND_GO_MODEL ??
-    MODEL_CLIENT_DEFAULT_MODEL;
+    process.env.PLANNER_MODEL ?? process.env.HARNESS_AGENT_MODEL;
   const repairModel =
-    process.env.PLANNER_REPAIR_MODEL ??
-    process.env.FORK_AND_GO_REPAIR_MODEL ??
-    MODEL_CLIENT_REPAIR_MODEL;
+    process.env.PLANNER_REPAIR_MODEL ?? defaultModel;
 
-  let modelClient;
-  try {
-    modelClient = createModelClient({
-      cli: { defaultModel },
-      openai: { defaultModel },
-    });
-  } catch (err) {
-    process.stderr.write(
-      `plan: ${err instanceof Error ? err.message : String(err)}\n`,
-    );
-    return 2;
-  }
+  const provider =
+    process.env.HARNESS_AGENT_PROVIDER === "codex" ? "codex" : "claude";
+  const modelClient = wrapAgentAsCompletionClient(
+    createAgentRunner({
+      provider,
+      ...(defaultModel ? { model: defaultModel } : {}),
+    }),
+    { cwd: REPO_ROOT },
+  );
 
   const specAbs = path.resolve(REPO_ROOT, parsed.specPath);
 
@@ -199,8 +190,8 @@ async function main(): Promise<number> {
     {
       modelClient,
       auditSink,
-      defaultModel,
-      repairModel,
+      ...(defaultModel ? { defaultModel } : {}),
+      ...(repairModel ? { repairModel } : {}),
     },
   );
 

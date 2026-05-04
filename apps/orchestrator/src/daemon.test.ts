@@ -89,7 +89,7 @@ function stubInvoker(
       calls.push({
         planId: opts.planId,
         resume: opts.resume ?? false,
-        extraArgs: opts.extraArgs ?? [],
+        extraArgs: [],
       });
       const next = results[idx];
       idx += 1;

@@ -1,12 +1,17 @@
-// Orchestrator daemon entry point. Boots the daemon, wires in defaults from
-// the environment, and awaits shutdown. Designed to be launched via
-// `scripts/orchestrator.sh` in production and via `node --experimental-
-// strip-types src/index.ts` in development.
+// Orchestrator daemon entry point. Boots the daemon against a target
+// repo identified by --repo, HARNESS_TARGET_REPO env var, or the current
+// working directory (in that precedence order). Loads the target's
+// harness.config.{json,ts} via @harness/config, builds a HarnessConfig,
+// and starts the long-running watcher. The runner is in-process now —
+// no scripts/run_task.sh subprocess.
 
-import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+
+import { loadHarnessConfig, resolveRepoRoot } from "@harness/config";
+import { runFidelityCheck } from "@harness/fidelity-check";
+import { runReleaseGate } from "@harness/release-gate";
+import { createAgentRunner, wrapAgentAsCompletionClient } from "@harness/agent-runner";
 
 import {
   createDaemon,
@@ -15,61 +20,59 @@ import {
 } from "./daemon.ts";
 
 export const DEFAULT_PORT = 4500;
-export const DEFAULT_FIDELITY_SPEC = "docs/product-specs/EXAMPLE.md";
-export const DEFAULT_RELEASE_SPEC = "docs/product-specs/EXAMPLE.acceptance.md";
 
 async function main(): Promise<void> {
-  const repoRoot = path.resolve(
-    fileURLToPath(new URL("../../../", import.meta.url)),
-  );
+  const argv = process.argv.slice(2);
+  const repoRoot = parseRepoFlag(argv) ?? resolveRepoRoot(process.env);
+  if (!existsSync(repoRoot)) {
+    throw new Error(`target repo not found: ${repoRoot}`);
+  }
+
+  const config = await loadHarnessConfig(repoRoot, { env: process.env });
   const port = parsePort(process.env.ORCHESTRATOR_PORT) ?? DEFAULT_PORT;
-  const tokenCeiling = parseCeiling(process.env.BUDGET_CEILING_TOKENS);
-  const fidelityEveryN = parseFidelityEveryN(
-    process.env.FIDELITY_CHECK_EVERY_N_PLANS,
-  );
-  const fidelitySpec = process.env.FIDELITY_CHECK_SPEC || DEFAULT_FIDELITY_SPEC;
+  const tokenCeiling =
+    parseCeiling(process.env.BUDGET_CEILING_TOKENS) ??
+    config.budget.ceilingTokens ??
+    null;
 
   const fidelityOpts: {
     fidelityCheckEveryNPlans?: number;
     fidelityHook?: FidelityHook;
   } = {};
-  if (fidelityEveryN > 0) {
-    // Fail fast if the configured spec isn't on disk. Without this check the
-    // daemon boots happily and every fidelity firing EISDIR/ENOENT-fails
-    // silently through the checker — misconfiguration as an env-unset
-    // install would never surface until the Nth merge.
-    const specAbs = path.isAbsolute(fidelitySpec)
-      ? fidelitySpec
-      : path.resolve(repoRoot, fidelitySpec);
+  if (config.fidelity?.specPath && (config.fidelity.everyNPlans ?? 0) > 0) {
+    const specAbs = path.isAbsolute(config.fidelity.specPath)
+      ? config.fidelity.specPath
+      : path.resolve(repoRoot, config.fidelity.specPath);
     if (!existsSync(specAbs)) {
       throw new Error(
-        `FIDELITY_CHECK_SPEC points at ${fidelitySpec} but that file does not exist (resolved to ${specAbs}). Set FIDELITY_CHECK_EVERY_N_PLANS=0 to disable the hook, or point FIDELITY_CHECK_SPEC at a real product spec.`,
+        `harness.config.fidelity.specPath points at ${config.fidelity.specPath} but that file does not exist (resolved to ${specAbs}).`,
       );
     }
-    fidelityOpts.fidelityCheckEveryNPlans = fidelityEveryN;
-    fidelityOpts.fidelityHook = createScriptFidelityHook({
+    fidelityOpts.fidelityCheckEveryNPlans = config.fidelity.everyNPlans!;
+    fidelityOpts.fidelityHook = createFidelityHook({
       repoRoot,
-      specPath: fidelitySpec,
+      specPath: specAbs,
+      config,
     });
   }
 
-  // Plan 0054: release-gate hook. Enabled whenever RELEASE_GATE_SPEC points
-  // at a real acceptance file. Silent on failure — "not ready" is the
-  // normal case — so we don't need a separate enable/disable env var.
-  const releaseSpec = process.env.RELEASE_GATE_SPEC || DEFAULT_RELEASE_SPEC;
   const releaseOpts: { releaseGateHook?: ReleaseGateHook } = {};
-  const releaseSpecAbs = path.isAbsolute(releaseSpec)
-    ? releaseSpec
-    : path.resolve(repoRoot, releaseSpec);
-  if (existsSync(releaseSpecAbs)) {
-    releaseOpts.releaseGateHook = createScriptReleaseGateHook({
-      repoRoot,
-      specPath: releaseSpec,
-    });
+  if (config.releaseGate?.specPath) {
+    const specAbs = path.isAbsolute(config.releaseGate.specPath)
+      ? config.releaseGate.specPath
+      : path.resolve(repoRoot, config.releaseGate.specPath);
+    if (existsSync(specAbs)) {
+      releaseOpts.releaseGateHook = createReleaseGateHook({
+        repoRoot,
+        specPath: specAbs,
+        config,
+      });
+    }
   }
 
   const daemon = await createDaemon({
     repoRoot,
+    config,
     port,
     ...(tokenCeiling !== null ? { tokenCeiling } : {}),
     ...fidelityOpts,
@@ -84,9 +87,21 @@ async function main(): Promise<void> {
       repoRoot,
     }) + "\n",
   );
+}
 
-  // Keep the process alive — daemon.stop() resolves the signal handlers'
-  // await which lets the event loop drain naturally.
+function parseRepoFlag(argv: ReadonlyArray<string>): string | null {
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i]!;
+    if (arg === "--repo") {
+      const value = argv[i + 1];
+      if (!value) throw new Error("--repo requires a path argument");
+      return path.resolve(value);
+    }
+    if (arg.startsWith("--repo=")) {
+      return path.resolve(arg.slice("--repo=".length));
+    }
+  }
+  return null;
 }
 
 function parsePort(value: string | undefined): number | null {
@@ -111,134 +126,110 @@ function parseCeiling(value: string | undefined): number | null {
   return Math.floor(parsed);
 }
 
-function parseFidelityEveryN(value: string | undefined): number {
-  if (!value) return 0;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
-    throw new Error(
-      `FIDELITY_CHECK_EVERY_N_PLANS must be a non-negative integer, got ${JSON.stringify(value)}`,
-    );
-  }
-  return parsed;
-}
-
-// Fidelity hook that shells out to `./scripts/check-fidelity.sh`. The
-// script itself is responsible for writing the report and calling
-// `plan-graph set-status` + the 9999 meta-plan when drift exceeds the
-// threshold — this hook translates the exit code into
-// `{ ok: true/false }` for the daemon and forwards the script's stdout
-// so `drift score …` / `wrote …` lines land in the daemon log. The
-// markdown report path and drift score are parsed back out so they can
-// ride along on the `fidelity_check_ok` / `fidelity_blocked` history
-// entry the daemon writes.
-function createScriptFidelityHook(opts: {
+// Direct in-process fidelity hook. Replaces the previous bash shellout to
+// `./scripts/check-fidelity.sh`. Builds an AgentRunner from config,
+// wraps it as a CompletionClient, and calls runFidelityCheck() in-proc.
+function createFidelityHook(opts: {
   repoRoot: string;
   specPath: string;
+  config: import("@harness/config").HarnessConfig;
 }): FidelityHook {
   return async () => {
-    return await new Promise((resolve) => {
-      const child = spawn(
-        path.join(opts.repoRoot, "scripts", "check-fidelity.sh"),
-        ["--spec", opts.specPath],
-        {
-          cwd: opts.repoRoot,
-          env: process.env,
-          stdio: ["ignore", "pipe", "pipe"],
-        },
+    try {
+      const runner = createAgentRunner({
+        provider:
+          opts.config.modelClient.provider ?? opts.config.agent.provider,
+        ...(opts.config.modelClient.model
+          ? { model: opts.config.modelClient.model }
+          : opts.config.agent.model
+            ? { model: opts.config.agent.model }
+            : {}),
+      });
+      const modelClient = wrapAgentAsCompletionClient(runner, {
+        cwd: opts.repoRoot,
+      });
+      const reportsDir = path.join(
+        opts.repoRoot,
+        opts.config.stateDir,
+        "fidelity-reports",
       );
-      let stderr = "";
-      let stdout = "";
-      child.stderr.on("data", (chunk: Buffer) => {
-        stderr += chunk.toString("utf8");
-      });
-      child.stdout.on("data", (chunk: Buffer) => {
-        const text = chunk.toString("utf8");
-        stdout += text;
-        process.stdout.write(text);
-      });
-      child.on("error", (err) => {
-        resolve({ ok: false, reason: `checker spawn failed: ${err.message}` });
-      });
-      child.on("close", (code) => {
-        const parsed = parseFidelityStdout(stdout);
-        if (code === 0) {
-          resolve({ ok: true, ...parsed });
-          return;
-        }
-        resolve({
-          ok: false,
-          reason: stderr.trim() || `check-fidelity.sh exited with code ${code}`,
-          ...parsed,
-        });
-      });
-    });
+      const outcome = await runFidelityCheck(
+        {
+          specPath: opts.specPath,
+          activeDir: path.join(opts.repoRoot, opts.config.planDir),
+          completedDir: path.join(opts.repoRoot, opts.config.completedDir),
+          reportsDir,
+          repoRoot: opts.repoRoot,
+          appPaths: opts.config.appPaths,
+        },
+        { modelClient },
+      );
+      if (!outcome.ok) {
+        return { ok: false, reason: outcome.reason };
+      }
+      return {
+        ok: !outcome.exceedsThreshold,
+        score: outcome.score,
+        threshold: outcome.threshold,
+        reportPath: outcome.report.markdownPath,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        reason:
+          err instanceof Error
+            ? `fidelity hook error: ${err.message}`
+            : `fidelity hook error: ${String(err)}`,
+      };
+    }
   };
 }
 
-// Plan 0054: release-gate hook that shells out to `./scripts/release-gate.sh`.
-// The script exits 0 when READY and non-zero otherwise. We run in dry-run
-// mode (no report writes) on the orchestrator path — the CLI itself writes
-// reports during operator-driven runs. Keeps the daemon from churning one
-// report per merge.
-function createScriptReleaseGateHook(opts: {
+function createReleaseGateHook(opts: {
   repoRoot: string;
   specPath: string;
+  config: import("@harness/config").HarnessConfig;
 }): ReleaseGateHook {
   return async () => {
-    return await new Promise((resolve) => {
-      const child = spawn(
-        path.join(opts.repoRoot, "scripts", "release-gate.sh"),
-        ["--spec", opts.specPath, "--dry-run", "--quiet"],
-        {
-          cwd: opts.repoRoot,
-          env: process.env,
-          stdio: ["ignore", "pipe", "pipe"],
-        },
+    try {
+      const reportsDir = path.join(
+        opts.repoRoot,
+        opts.config.stateDir,
+        "release-reports",
       );
-      let stdout = "";
-      child.stdout.on("data", (chunk: Buffer) => {
-        stdout += chunk.toString("utf8");
+      const envTemplatePath = path.join(opts.repoRoot, ".env.example");
+      const result = await runReleaseGate({
+        specPath: opts.specPath,
+        activeDir: path.join(opts.repoRoot, opts.config.planDir),
+        completedDir: path.join(opts.repoRoot, opts.config.completedDir),
+        envTemplatePath,
+        reportsDir,
+        repoRoot: opts.repoRoot,
+        writeReport: false,
+        runTests: false,
       });
-      child.stderr.on("data", () => {
-        // Swallow — release gate failure is the normal case and must stay
-        // silent. Errors worth surfacing come through a non-zero exit; the
-        // daemon's release_gate_hook_error branch handles those.
-      });
-      child.on("error", (err) => {
-        resolve({
-          passed: false,
-          reason: `release-gate.sh spawn failed: ${err.message}`,
-        });
-      });
-      child.on("close", (code) => {
-        const passed = code === 0;
-        resolve({
-          passed,
-          specPath: opts.specPath,
-          ...(stdout.trim() ? { reason: stdout.trim() } : {}),
-        });
-      });
-    });
+      if (!result.ok) {
+        return { passed: false, reason: result.reason, specPath: opts.specPath };
+      }
+      const passed = result.report.passed;
+      const unmet = result.report.criteria.filter(
+        (c) => c.status !== "covered",
+      ).length;
+      return {
+        passed,
+        specPath: opts.specPath,
+        ...(passed ? {} : { reason: `${unmet} criteria not covered` }),
+      };
+    } catch (err) {
+      return {
+        passed: false,
+        reason:
+          err instanceof Error
+            ? `release gate error: ${err.message}`
+            : `release gate error: ${String(err)}`,
+      };
+    }
   };
-}
-
-function parseFidelityStdout(stdout: string): {
-  score?: number;
-  threshold?: number;
-  reportPath?: string;
-} {
-  const result: { score?: number; threshold?: number; reportPath?: string } =
-    {};
-  const scoreMatch = stdout.match(/drift score (\d+)\/100 \(threshold (\d+)\)/);
-  if (scoreMatch) {
-    result.score = Number(scoreMatch[1]);
-    result.threshold = Number(scoreMatch[2]);
-  }
-  const wroteMatch = stdout.match(/^wrote (.+\.md)$/m);
-  if (wroteMatch) {
-    result.reportPath = wroteMatch[1]!;
-  }
-  return result;
 }
 
 const invokedDirectly =

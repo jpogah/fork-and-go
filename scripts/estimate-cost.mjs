@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 // Cost estimator (plan 0052). Reads aggregated token counts — either from the
 // orchestrator's cumulative budget file or from a specific plan's .task-runs
-// directory — and prints a human-readable cost summary using the @fork-and-go/
+// directory — and prints a human-readable cost summary using the @harness/
 // run-budget rate card.
 //
 // Usage:
@@ -13,7 +13,7 @@
 // human-friendly summary.
 //
 // The shebang passes `--experimental-strip-types` so Node can import the
-// `@fork-and-go/run-budget` package's `.ts` source directly on Node <23.6 /
+// `@harness/run-budget` package's `.ts` source directly on Node <23.6 /
 // <22.18. `env -S` splits the arg list so the flag reaches node.
 
 import path from "node:path";

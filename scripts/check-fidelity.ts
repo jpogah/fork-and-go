@@ -1,5 +1,5 @@
 // Entry point for the spec-fidelity checker CLI. Wraps `runFidelityCheck`
-// from @fork-and-go/fidelity-check with env-based configuration so the script
+// from @harness/fidelity-check with env-based configuration so the script
 // drops into the harness exactly the same way `plan.sh` does.
 //
 // Usage:
@@ -17,11 +17,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import {
-  MODEL_CLIENT_DEFAULT_MODEL,
-  MODEL_CLIENT_REPAIR_MODEL,
-  createModelClient,
-} from "@fork-and-go/model-client";
-import { DEFAULT_THRESHOLD, runFidelityCheck } from "@fork-and-go/fidelity-check";
+  createAgentRunner,
+  wrapAgentAsCompletionClient,
+} from "@harness/agent-runner";
+import { DEFAULT_THRESHOLD, runFidelityCheck } from "@harness/fidelity-check";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
 const ACTIVE_DIR = path.join(REPO_ROOT, "docs", "exec-plans", "active");
@@ -202,26 +201,19 @@ async function main(): Promise<number> {
     : path.resolve(REPO_ROOT, parsed.specPath);
 
   const defaultModel =
-    process.env.FIDELITY_MODEL ||
-    process.env.FORK_AND_GO_MODEL ||
-    MODEL_CLIENT_DEFAULT_MODEL;
+    process.env.FIDELITY_MODEL || process.env.HARNESS_AGENT_MODEL;
   const repairModel =
-    process.env.FIDELITY_REPAIR_MODEL ||
-    process.env.FORK_AND_GO_REPAIR_MODEL ||
-    MODEL_CLIENT_REPAIR_MODEL;
+    process.env.FIDELITY_REPAIR_MODEL || defaultModel;
 
-  let modelClient;
-  try {
-    modelClient = createModelClient({
-      cli: { defaultModel },
-      openai: { defaultModel },
-    });
-  } catch (err) {
-    process.stderr.write(
-      `check-fidelity: ${err instanceof Error ? err.message : String(err)}\n`,
-    );
-    return 2;
-  }
+  const provider =
+    process.env.HARNESS_AGENT_PROVIDER === "codex" ? "codex" : "claude";
+  const modelClient = wrapAgentAsCompletionClient(
+    createAgentRunner({
+      provider,
+      ...(defaultModel ? { model: defaultModel } : {}),
+    }),
+    { cwd: REPO_ROOT },
+  );
 
   const outcome = await runFidelityCheck(
     {
@@ -235,8 +227,8 @@ async function main(): Promise<number> {
     },
     {
       modelClient,
-      defaultModel,
-      repairModel,
+      ...(defaultModel ? { defaultModel } : {}),
+      ...(repairModel ? { repairModel } : {}),
     },
   );
 

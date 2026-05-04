@@ -1,4 +1,4 @@
-// Budget manager. Wraps the @fork-and-go/run-budget primitives with the
+// Budget manager. Wraps the @harness/run-budget primitives with the
 // orchestrator-specific concerns: picking up the default ceiling from env,
 // aggregating tokens per-plan on completion, computing the per-plan warning
 // threshold, and surfacing a snapshot for `GET /status`.
@@ -14,7 +14,7 @@ import {
   scanPlanRuns,
   type AggregatedUsage,
   type BudgetState,
-} from "@fork-and-go/run-budget";
+} from "@harness/run-budget";
 
 export interface BudgetManagerOptions {
   stateDir: string;

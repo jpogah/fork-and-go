@@ -25,7 +25,7 @@ import {
   validateGraph,
   type Plan,
   type PlanFrontmatter,
-} from "@fork-and-go/plan-graph";
+} from "@harness/plan-graph";
 
 import type { PlanProposal } from "./schemas.ts";
 

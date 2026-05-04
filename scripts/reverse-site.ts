@@ -13,17 +13,16 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import {
-  MODEL_CLIENT_DEFAULT_MODEL,
-  MODEL_CLIENT_REPAIR_MODEL,
-  createModelClient,
-} from "@fork-and-go/model-client";
+  createAgentRunner,
+  wrapAgentAsCompletionClient,
+} from "@harness/agent-runner";
 import {
   SiteReverseError,
   defaultSlugFromUrl,
   runSiteReverse,
   type SiteReversePlannerMode,
   type ViewportName,
-} from "@fork-and-go/site-reverse";
+} from "@harness/site-reverse";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
 
@@ -217,26 +216,18 @@ async function main(): Promise<number> {
   }
 
   const defaultModel =
-    process.env.SITE_REVERSE_MODEL ??
-    process.env.FORK_AND_GO_MODEL ??
-    MODEL_CLIENT_DEFAULT_MODEL;
-  const repairModel =
-    process.env.SITE_REVERSE_REPAIR_MODEL ??
-    process.env.FORK_AND_GO_REPAIR_MODEL ??
-    MODEL_CLIENT_REPAIR_MODEL;
+    process.env.SITE_REVERSE_MODEL ?? process.env.HARNESS_AGENT_MODEL;
+  const repairModel = process.env.SITE_REVERSE_REPAIR_MODEL ?? defaultModel;
 
-  let modelClient;
-  try {
-    modelClient = createModelClient({
-      cli: { defaultModel },
-      openai: { defaultModel },
-    });
-  } catch (err) {
-    process.stderr.write(
-      `reverse-site: ${err instanceof Error ? err.message : String(err)}\n`,
-    );
-    return 2;
-  }
+  const provider =
+    process.env.HARNESS_AGENT_PROVIDER === "codex" ? "codex" : "claude";
+  const modelClient = wrapAgentAsCompletionClient(
+    createAgentRunner({
+      provider,
+      ...(defaultModel ? { model: defaultModel } : {}),
+    }),
+    { cwd: REPO_ROOT },
+  );
 
   const slug = parsed.slug ?? defaultSlugFromUrl(parsed.url);
   try {
@@ -262,8 +253,8 @@ async function main(): Promise<number> {
       },
       {
         modelClient,
-        defaultModel,
-        repairModel,
+        ...(defaultModel ? { defaultModel } : {}),
+        ...(repairModel ? { repairModel } : {}),
         logger: (line) => process.stderr.write(line + "\n"),
       },
     );

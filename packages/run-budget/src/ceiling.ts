@@ -219,7 +219,7 @@ function stringField(
   return v;
 }
 
-// Atomic write, same pattern as @fork-and-go/orchestrator's state writer.
+// Atomic write, same pattern as @harness/orchestrator's state writer.
 function writeAtomic(filePath: string, value: unknown): void {
   const dir = path.dirname(filePath);
   mkdirSync(dir, { recursive: true });

@@ -88,6 +88,7 @@ describe("buildContext", () => {
       activeDir,
       completedDir,
       repoRoot: root,
+      appPaths: ["apps/web/app"],
     });
 
     expect(ctx.spec.slug).toBe("demo");

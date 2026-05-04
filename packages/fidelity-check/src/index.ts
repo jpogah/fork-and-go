@@ -1,4 +1,4 @@
-// Public surface of @fork-and-go/fidelity-check. Everything downstream (CLI,
+// Public surface of @harness/fidelity-check. Everything downstream (CLI,
 // orchestrator hook, tests) imports from here.
 
 export {
