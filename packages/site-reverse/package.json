@@ -1,5 +1,5 @@
 {
-  "name": "@fork-and-go/site-reverse",
+  "name": "@harness/site-reverse",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,8 +13,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@fork-and-go/model-client": "*",
-    "@fork-and-go/planner": "*",
+    "@harness/agent-runner": "*",
+    "@harness/planner": "*",
     "playwright": "^1.59.1",
     "zod": "*"
   },

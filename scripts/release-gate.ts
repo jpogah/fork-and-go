@@ -18,7 +18,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { runReleaseGate } from "@fork-and-go/release-gate";
+import { runReleaseGate } from "@harness/release-gate";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
 const ACTIVE_DIR = path.join(REPO_ROOT, "docs", "exec-plans", "active");

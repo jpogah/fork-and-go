@@ -8,13 +8,15 @@
 
 import { writeFileSync } from "node:fs";
 
-import { MODEL_CLIENT_DEFAULT_MODEL, MODEL_CLIENT_REPAIR_MODEL } from "@fork-and-go/model-client";
-import type { ModelClient, ModelUsage } from "@fork-and-go/model-client";
+import type {
+  CompletionClient as ModelClient,
+  CompletionUsage as ModelUsage,
+} from "@harness/agent-runner";
 import {
   generatePlansMarkdown,
   loadPlans,
   type Plan,
-} from "@fork-and-go/plan-graph";
+} from "@harness/plan-graph";
 
 import {
   addUsage,
@@ -40,6 +42,7 @@ export interface PlannerDeps {
   auditSink?: PlannerAuditSink;
   clock?: () => Date;
   prompts?: PlannerPrompts;
+  // When unset, the underlying agent SDK uses its provider-default model.
   defaultModel?: string;
   repairModel?: string;
   maxRepairAttempts?: number;
@@ -65,13 +68,13 @@ export interface PlannerRunOptions {
   // decompose prompt lists them so the LLM can claim the right tags on
   // each proposal it emits. Callers (CLI, tests) resolve an acceptance
   // file and pass the parsed list in — the planner intentionally does not
-  // depend on `@fork-and-go/release-gate` to keep the package boundary clean.
+  // depend on `@harness/release-gate` to keep the package boundary clean.
   // Absence of this option leaves `acceptance_tags: []` on every emitted
   // plan — identical to behaviour before 0054.
   acceptanceTags?: ReadonlyArray<{ tag: string; description: string }>;
 }
 
-import type { ContextParseWarning } from "@fork-and-go/context-ingest";
+import type { ContextParseWarning } from "@harness/context-ingest";
 
 export type PlannerRunOutcome =
   | {
@@ -100,8 +103,8 @@ export async function runPlanner(
   const auditSink = deps.auditSink ?? createNoopPlannerAuditSink();
   const clock = deps.clock ?? (() => new Date());
   const prompts = deps.prompts ?? loadPlannerPrompts();
-  const defaultModel = deps.defaultModel ?? MODEL_CLIENT_DEFAULT_MODEL;
-  const repairModel = deps.repairModel ?? MODEL_CLIENT_REPAIR_MODEL;
+  const defaultModel = deps.defaultModel;
+  const repairModel = deps.repairModel ?? defaultModel;
   const runId = deps.generateRunId ? deps.generateRunId() : defaultRunId();
   const maxNewPlans = options.maxNewPlans ?? DEFAULT_MAX_NEW_PLANS;
 

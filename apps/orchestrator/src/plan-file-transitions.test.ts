@@ -8,7 +8,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { loadPlans, validateGraph } from "@fork-and-go/plan-graph";
+import { loadPlans, validateGraph } from "@harness/plan-graph";
 import { describe, expect, it } from "vitest";
 
 import {

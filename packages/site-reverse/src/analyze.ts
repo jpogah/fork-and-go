@@ -1,10 +1,8 @@
 import {
-  MODEL_CLIENT_DEFAULT_MODEL,
-  MODEL_CLIENT_REPAIR_MODEL,
-  type ModelClient,
-  type ModelRequest,
-  type ModelUsage,
-} from "@fork-and-go/model-client";
+  type CompletionClient as ModelClient,
+  type CompletionRequest as ModelRequest,
+  type CompletionUsage as ModelUsage,
+} from "@harness/agent-runner";
 import { z } from "zod";
 
 import { loadSiteReversePrompts } from "./prompts.ts";
@@ -92,8 +90,8 @@ export async function analyzeCapturedSite(
   deps: AnalyzeCapturedSiteDeps,
 ): Promise<AnalyzeCapturedSiteResult> {
   const systemPrompt = deps.systemPrompt ?? loadSiteReversePrompts().analyze;
-  const defaultModel = deps.defaultModel ?? MODEL_CLIENT_DEFAULT_MODEL;
-  const repairModel = deps.repairModel ?? MODEL_CLIENT_REPAIR_MODEL;
+  const defaultModel = deps.defaultModel;
+  const repairModel = deps.repairModel ?? defaultModel;
   const maxRepairAttempts = deps.maxRepairAttempts ?? 1;
   const attempts: AnalysisAttempt[] = [];
   const totalUsage: ModelUsage = {
@@ -141,7 +139,7 @@ export async function analyzeCapturedSite(
 function buildAnalysisRequest(
   input: AnalyzeCapturedSiteInput,
   systemPrompt: string,
-  model: string,
+  model: string | undefined,
 ): ModelRequest {
   const payload = {
     capture: summarizeCapture(input.capture),
@@ -158,7 +156,7 @@ function buildAnalysisRequest(
   };
   return {
     system: systemPrompt,
-    model,
+    ...(model !== undefined ? { model } : {}),
     maxTokens: 4096,
     messages: [
       {
@@ -177,11 +175,11 @@ function buildRepairRequest(
   base: ModelRequest,
   lastResponseText: string,
   lastError: string,
-  repairModel: string,
+  repairModel: string | undefined,
 ): ModelRequest {
   return {
     ...base,
-    model: repairModel,
+    ...(repairModel !== undefined ? { model: repairModel } : {}),
     messages: [
       ...base.messages,
       { role: "assistant", content: lastResponseText },

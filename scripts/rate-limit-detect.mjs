@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Thin shell-facing wrapper around @fork-and-go/run-budget's rate-limit detector.
+// Thin shell-facing wrapper around @harness/run-budget's rate-limit detector.
 // Exits 0 when the supplied log tail matches a rate-limit marker, 1 when it
 // does not (or the file does not exist). Used by scripts/run_task.sh and
 // scripts/run_task_loop.sh so the shell scripts don't duplicate the regex.

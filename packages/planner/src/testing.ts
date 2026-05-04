@@ -2,11 +2,11 @@
 // cannot accidentally depend on them.
 
 import type {
-  ModelClient,
-  ModelRequest,
-  ModelResponse,
-  ModelUsage,
-} from "@fork-and-go/model-client";
+  CompletionClient as ModelClient,
+  CompletionRequest as ModelRequest,
+  CompletionResponse as ModelResponse,
+  CompletionUsage as ModelUsage,
+} from "@harness/agent-runner";
 
 // Build a scripted model client that replays a sequence of canned responses.
 // Each call consumes one entry from the queue; calls past the end return the

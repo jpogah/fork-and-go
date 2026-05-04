@@ -6,8 +6,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
-import { MODEL_CLIENT_DEFAULT_MODEL, MODEL_CLIENT_REPAIR_MODEL } from "@fork-and-go/model-client";
-import type { ModelClient } from "@fork-and-go/model-client";
+import type { CompletionClient as ModelClient } from "@harness/agent-runner";
 
 import { audit } from "./audit.ts";
 import { buildContext, FidelityContextError } from "./context-builder.ts";
@@ -31,6 +30,13 @@ export interface RunFidelityOptions {
   completedDir: string;
   reportsDir: string;
   repoRoot: string;
+  // Repo-relative or absolute directories the auditor should walk for
+  // app-level files. Sourced from HarnessConfig.appPaths upstream.
+  appPaths?: ReadonlyArray<string>;
+  // Repo-relative or absolute directory containing the project's
+  // packages. Defaults to "<repoRoot>/packages" when undefined; pass
+  // an explicit empty string to skip the packages slice.
+  packagesDir?: string;
   threshold?: number;
   autoSuspend?: boolean;
   now?: () => Date;
@@ -81,6 +87,10 @@ export async function runFidelityCheck(
       activeDir: options.activeDir,
       completedDir: options.completedDir,
       repoRoot: options.repoRoot,
+      ...(options.appPaths !== undefined ? { appPaths: options.appPaths } : {}),
+      ...(options.packagesDir !== undefined
+        ? { packagesDir: options.packagesDir }
+        : {}),
       ...(previousSummaryPath !== null ? { previousSummaryPath } : {}),
     });
   } catch (err) {
@@ -91,14 +101,14 @@ export async function runFidelityCheck(
   }
 
   const prompts = deps.prompts ?? loadFidelityPrompts();
-  const defaultModel = deps.defaultModel ?? MODEL_CLIENT_DEFAULT_MODEL;
-  const repairModel = deps.repairModel ?? MODEL_CLIENT_REPAIR_MODEL;
+  const defaultModel = deps.defaultModel;
+  const repairModel = deps.repairModel ?? defaultModel;
 
   const auditResult = await audit(context, {
     modelClient: deps.modelClient,
     systemPrompt: prompts.audit,
-    defaultModel,
-    repairModel,
+    ...(defaultModel !== undefined ? { defaultModel } : {}),
+    ...(repairModel !== undefined ? { repairModel } : {}),
     ...(deps.maxRepairAttempts !== undefined
       ? { maxRepairAttempts: deps.maxRepairAttempts }
       : {}),

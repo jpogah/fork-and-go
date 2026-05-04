@@ -1,4 +1,4 @@
-// Prompt loader. Same pattern as @fork-and-go/planner: prompts are versioned
+// Prompt loader. Same pattern as @harness/planner: prompts are versioned
 // markdown files under ./prompts/ so they diff in code review.
 
 import { readFileSync } from "node:fs";

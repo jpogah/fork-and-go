@@ -4,9 +4,13 @@
 // mock repo fixture.
 //
 // We intentionally gather a "slice" rather than the whole repo: file
-// listings (not contents) for app/ and packages/, a route manifest from
-// apps/web/app/api/, and the previous report's summary JSON so the LLM
-// can detect worsening-over-time drift without re-parsing markdown.
+// listings (not contents) for the configured app paths and packages dir,
+// any matching API-route files, and the previous report's summary JSON so
+// the LLM can detect worsening-over-time drift without re-parsing markdown.
+//
+// The slice paths are repo-agnostic — the caller (orchestrator wiring up
+// from HarnessConfig) tells us which directories to walk. There are no
+// hardcoded `apps/web/` or `packages/` literals here.
 
 import {
   existsSync,
@@ -17,7 +21,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 
-import { loadPlans, type Plan } from "@fork-and-go/plan-graph";
+import { loadPlans, type Plan } from "@harness/plan-graph";
 
 export interface FidelityContext {
   spec: {
@@ -52,6 +56,15 @@ export interface BuildContextOptions {
   activeDir: string;
   completedDir: string;
   repoRoot: string;
+  // Repo-relative or absolute directories to walk for app-level files
+  // (routes, components, etc.). Sourced from HarnessConfig.appPaths.
+  // When empty, no app slice is gathered.
+  appPaths?: ReadonlyArray<string>;
+  // Repo-relative or absolute directory containing the project's
+  // packages. Each subdir's `src/` is walked. Defaults to
+  // "<repoRoot>/packages" when undefined; pass an explicit empty
+  // string to skip the packages slice entirely.
+  packagesDir?: string;
   // Optional path to the previous JSON summary. When present, the content
   // is parsed and exposed as `previousSummary` for the LLM to reference.
   previousSummaryPath?: string;
@@ -98,17 +111,29 @@ export function buildContext(options: BuildContextOptions): FidelityContext {
     blurb: extractBlurb(plan.body),
   }));
 
-  const appFiles = listFiles(
-    path.join(options.repoRoot, "apps", "web", "app"),
-    options.repoRoot,
-    MAX_FILES_PER_CATEGORY,
-  );
-  const packageFiles = listFiles(
-    path.join(options.repoRoot, "packages"),
-    options.repoRoot,
-    MAX_FILES_PER_CATEGORY,
-    { subDir: "src" },
-  );
+  const appPaths = options.appPaths ?? [];
+  const appFiles: string[] = [];
+  for (const appPath of appPaths) {
+    const absolute = path.isAbsolute(appPath)
+      ? appPath
+      : path.join(options.repoRoot, appPath);
+    appFiles.push(
+      ...listFiles(absolute, options.repoRoot, MAX_FILES_PER_CATEGORY),
+    );
+    if (appFiles.length >= MAX_FILES_PER_CATEGORY) break;
+  }
+  const packagesDir =
+    options.packagesDir === undefined
+      ? path.join(options.repoRoot, "packages")
+      : path.isAbsolute(options.packagesDir)
+        ? options.packagesDir
+        : path.join(options.repoRoot, options.packagesDir);
+  const packageFiles =
+    options.packagesDir === ""
+      ? []
+      : listFiles(packagesDir, options.repoRoot, MAX_FILES_PER_CATEGORY, {
+          subDir: "src",
+        });
   const apiRoutes = appFiles.filter(
     (f) => f.includes("/api/") && f.endsWith("route.ts"),
   );

@@ -1,4 +1,4 @@
-// Public surface of @fork-and-go/release-gate. CLI + orchestrator hook import
+// Public surface of @harness/release-gate. CLI + orchestrator hook import
 // from here so the internals can move without touching call sites.
 
 export {

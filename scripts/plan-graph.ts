@@ -1,5 +1,5 @@
 // Entry point for the plan-graph CLI. Invoked via scripts/plan-graph.sh, which
-// wraps `tsx` so we can import the TypeScript source of @fork-and-go/plan-graph
+// wraps `tsx` so we can import the TypeScript source of @harness/plan-graph
 // directly. Output is intentionally mechanical — greppable, stable order,
 // non-zero exit on any graph violation so preflight can gate on it.
 import path from "node:path";
@@ -17,7 +17,7 @@ import {
   toMermaid,
   topologicalOrder,
   validateGraph,
-} from "@fork-and-go/plan-graph";
+} from "@harness/plan-graph";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
 const ACTIVE_DIR = path.join(REPO_ROOT, "docs", "exec-plans", "active");

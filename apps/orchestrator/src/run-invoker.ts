@@ -1,46 +1,46 @@
-// Spawns `./scripts/run_task.sh <id>` (or the loop variant for resume) as a
-// child process, tees stdout+stderr to a per-plan log file, and resolves
-// with the exit code plus a rate-limit flag once the process exits.
+// In-process run invoker. Calls `runTask()` directly — no more spawning
+// `./scripts/run_task.sh` as a subprocess. Keeps the existing
+// InvokeRunResult shape so daemon.ts didn't have to change much.
+//
+// The exit-code semantics map to runTask's outcome:
+//   success           → exitCode 0,    rateLimited false
+//   rate-limit hit    → exitCode 2,    rateLimited true   (daemon retries)
+//   any other failure → exitCode 1,    rateLimited false  (daemon blocks)
 
-import { spawn, type ChildProcess } from "node:child_process";
-import type { Readable } from "node:stream";
-import { createWriteStream, mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import {
-  scanLogForRateLimit,
-  tailReason,
-  type RateLimitScanOptions,
-} from "./rate-limit-detector.ts";
+import type { AgentRunner } from "@harness/agent-runner";
+import type { HarnessConfig } from "@harness/config";
 
-// Time to wait after SIGTERM before escalating to SIGKILL on cancellation.
-// A wedged claude CLI or stuck node subprocess that ignores SIGTERM would
-// otherwise leave invoke() unresolved indefinitely, hanging any caller that
-// awaits it (e.g., daemon.stop()).
-export const KILL_ESCALATION_MS = 10_000;
+import { runTask, type Phase, type RunTaskOutcome } from "./runner/index.ts";
 
 export interface InvokeRunOptions {
   planId: string;
   repoRoot: string;
+  config: HarnessConfig;
   logsDir: string;
-  runTaskScript?: string;
-  runTaskLoopScript?: string;
-  // When true, invoke run_task_loop.sh (resume-from-disk flow). Otherwise
-  // invoke run_task.sh --phase all for a fresh run.
+  // When true, invoke the resume flow (re-enter review/fix loop on the
+  // existing branch). Otherwise run the full `--phase all` flow.
   resume?: boolean;
-  extraArgs?: readonly string[];
-  env?: NodeJS.ProcessEnv;
+  // Optional explicit phase. Defaults to "all" for fresh runs and the
+  // resume path for resume runs.
+  phase?: Phase;
+  // Caller-supplied agent runner — primarily a test seam. Production
+  // callers omit and the runner is built from config.agent.
+  agentRunner?: AgentRunner;
+  // Local-only mode (skip push/PR/merge). Defaults from runTask's own
+  // logic (presence of git remote + gh auth).
+  localOnly?: boolean;
+  skipE2e?: boolean;
+  dryRun?: boolean;
   now?: () => Date;
   signal?: AbortSignal;
-  rateLimitScan?: RateLimitScanOptions;
-  // Hook for tests: swap the real spawn() with a fake. Returns a process-like
-  // object exposing stdout/stderr streams + an `on("exit", cb)` listener.
-  spawnFn?: typeof spawn;
 }
 
 export interface InvokeRunResult {
   planId: string;
-  exitCode: number | null;
+  exitCode: number;
   signal: NodeJS.Signals | null;
   rateLimited: boolean;
   logPath: string;
@@ -55,16 +55,8 @@ export interface RunInvoker {
   activeLogPath(): string | null;
 }
 
-interface PipedChild extends ChildProcess {
-  stdout: Readable;
-  stderr: Readable;
-}
-
 export function createRunInvoker(): RunInvoker {
-  let active: {
-    child: PipedChild;
-    logPath: string;
-  } | null = null;
+  let active: { logPath: string; abort: AbortController } | null = null;
 
   return {
     async invoke(opts) {
@@ -75,105 +67,76 @@ export function createRunInvoker(): RunInvoker {
       }
       const now = opts.now ?? (() => new Date());
       mkdirSync(opts.logsDir, { recursive: true });
-      const ts = now()
-        .toISOString()
-        .replace(/[:.]/g, "-")
-        .replace("T", "_")
-        .replace("Z", "");
-      const logPath = path.join(opts.logsDir, `${opts.planId}-${ts}.log`);
-      const logStream = createWriteStream(logPath, { flags: "a" });
       const startedAt = now().toISOString();
+      const ts = startedAt.replace(/[:.]/g, "-").replace("T", "_").replace("Z", "");
+      const placeholderLog = path.join(opts.logsDir, `${opts.planId}-${ts}.log`);
+      writeFileSync(placeholderLog, "", "utf8");
 
-      const script = opts.resume
-        ? (opts.runTaskLoopScript ?? "./scripts/run_task_loop.sh")
-        : (opts.runTaskScript ?? "./scripts/run_task.sh");
-      const args = [opts.planId, ...(opts.extraArgs ?? [])];
-
-      const spawnFn = opts.spawnFn ?? spawn;
-      const child = spawnFn(script, args, {
-        cwd: opts.repoRoot,
-        env: { ...process.env, ...(opts.env ?? {}) },
-        stdio: ["ignore", "pipe", "pipe"],
-      }) as unknown as PipedChild;
-
-      active = { child, logPath };
-
-      const startLine = `[orchestrator] invoking ${script} ${args.join(" ")}\n`;
-      logStream.write(startLine);
-
-      child.stdout.on("data", (chunk) => {
-        logStream.write(chunk);
-      });
-      child.stderr.on("data", (chunk) => {
-        logStream.write(chunk);
-      });
-
-      const onAbort = (): void => {
-        terminateChild(child);
-      };
+      const abort = new AbortController();
       if (opts.signal) {
-        if (opts.signal.aborted) {
-          onAbort();
-        } else {
-          opts.signal.addEventListener("abort", onAbort, { once: true });
-        }
+        if (opts.signal.aborted) abort.abort();
+        else opts.signal.addEventListener("abort", () => abort.abort(), { once: true });
       }
+      active = { logPath: placeholderLog, abort };
 
-      return await new Promise<InvokeRunResult>((resolve, reject) => {
-        child.once("error", (err) => {
-          logStream.end(`[orchestrator] spawn error: ${err.message}\n`);
-          active = null;
-          if (opts.signal) opts.signal.removeEventListener("abort", onAbort);
-          reject(err);
+      let outcome: RunTaskOutcome;
+      try {
+        outcome = await runTask({
+          taskRef: opts.planId,
+          repoRoot: opts.repoRoot,
+          config: opts.config,
+          phase: opts.phase ?? (opts.resume ? undefined : "all"),
+          ...(opts.resume ? { resume: true } : {}),
+          ...(opts.agentRunner ? { agentRunner: opts.agentRunner } : {}),
+          ...(opts.localOnly !== undefined ? { localOnly: opts.localOnly } : {}),
+          ...(opts.skipE2e !== undefined ? { skipE2e: opts.skipE2e } : {}),
+          ...(opts.dryRun !== undefined ? { dryRun: opts.dryRun } : {}),
         });
-        child.once("exit", (code, signal) => {
-          const endLine = `[orchestrator] child exited code=${code} signal=${signal}\n`;
-          logStream.end(endLine, () => {
-            const finishedAt = now().toISOString();
-            const rateLimited = scanLogForRateLimit(
-              logPath,
-              opts.rateLimitScan,
-            );
-            const reason = rateLimited
-              ? "Claude usage limit hit"
-              : code === 0
-                ? ""
-                : tailReason(logPath);
-            active = null;
-            if (opts.signal) opts.signal.removeEventListener("abort", onAbort);
-            resolve({
-              planId: opts.planId,
-              exitCode: code,
-              signal,
-              rateLimited,
-              logPath,
-              reason,
-              startedAt,
-              finishedAt,
-            });
-          });
-        });
-      });
+      } catch (err) {
+        active = null;
+        const finishedAt = now().toISOString();
+        return {
+          planId: opts.planId,
+          exitCode: 1,
+          signal: null,
+          rateLimited: false,
+          logPath: placeholderLog,
+          reason: err instanceof Error ? err.message : String(err),
+          startedAt,
+          finishedAt,
+        };
+      }
+      active = null;
+      const finishedAt = now().toISOString();
+
+      if (outcome.ok) {
+        return {
+          planId: opts.planId,
+          exitCode: 0,
+          signal: null,
+          rateLimited: false,
+          logPath: outcome.logPath,
+          reason: "",
+          startedAt,
+          finishedAt,
+        };
+      }
+      return {
+        planId: opts.planId,
+        exitCode: outcome.rateLimited ? 2 : 1,
+        signal: null,
+        rateLimited: Boolean(outcome.rateLimited),
+        logPath: outcome.logPath,
+        reason: outcome.reason,
+        startedAt,
+        finishedAt,
+      };
     },
     cancelActive() {
-      if (active) terminateChild(active.child);
+      if (active) active.abort.abort();
     },
     activeLogPath() {
       return active?.logPath ?? null;
     },
   };
-}
-
-// SIGTERM the child, then escalate to SIGKILL after KILL_ESCALATION_MS if it
-// hasn't exited. The escalation timer is unref'd so it never holds the event
-// loop open on its own.
-function terminateChild(child: ChildProcess): void {
-  if (child.killed || child.exitCode !== null) return;
-  child.kill("SIGTERM");
-  const timer = setTimeout(() => {
-    if (!child.killed && child.exitCode === null) {
-      child.kill("SIGKILL");
-    }
-  }, KILL_ESCALATION_MS);
-  timer.unref();
 }

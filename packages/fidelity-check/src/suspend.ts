@@ -8,7 +8,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { loadPlans, setPlanStatus, type Plan } from "@fork-and-go/plan-graph";
+import { loadPlans, setPlanStatus, type Plan } from "@harness/plan-graph";
 
 import type { FidelitySummary } from "./report-writer.ts";
 

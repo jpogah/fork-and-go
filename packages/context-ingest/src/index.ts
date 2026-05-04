@@ -1,4 +1,4 @@
-// Public surface of @fork-and-go/context-ingest. Downstream callers (runner
+// Public surface of @harness/context-ingest. Downstream callers (runner
 // helpers, planner ingest, CLI) import from here.
 
 export {

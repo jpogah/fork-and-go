@@ -1,7 +1,7 @@
 // Thin re-export of the shared rate-limit detector (plan 0052). The canonical
-// implementation lives in `@fork-and-go/run-budget`; this file remains so existing
+// implementation lives in `@harness/run-budget`; this file remains so existing
 // call sites (run-invoker.ts, tests) keep working without an import rewrite.
-// New code should import from `@fork-and-go/run-budget` directly.
+// New code should import from `@harness/run-budget` directly.
 
 export {
   containsRateLimitMarker,
@@ -9,5 +9,5 @@ export {
   RATE_LIMIT_REGEX,
   scanLogForRateLimit,
   tailReason,
-} from "@fork-and-go/run-budget";
-export type { RateLimitScanOptions } from "@fork-and-go/run-budget";
+} from "@harness/run-budget";
+export type { RateLimitScanOptions } from "@harness/run-budget";

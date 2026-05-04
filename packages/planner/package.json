@@ -1,5 +1,5 @@
 {
-  "name": "@fork-and-go/planner",
+  "name": "@harness/planner",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,9 +13,9 @@
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@fork-and-go/model-client": "*",
-    "@fork-and-go/context-ingest": "*",
-    "@fork-and-go/plan-graph": "*",
+    "@harness/agent-runner": "*",
+    "@harness/context-ingest": "*",
+    "@harness/plan-graph": "*",
     "yaml": "*",
     "zod": "*"
   },

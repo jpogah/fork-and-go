@@ -1,17 +1,26 @@
 {
-  "name": "@fork-and-go/orchestrator",
+  "name": "@harness/orchestrator",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
+  "bin": {
+    "harness": "./src/cli.ts"
+  },
   "scripts": {
     "start": "node --experimental-strip-types src/index.ts",
-    "typecheck": "tsc --project tsconfig.json --noEmit"
+    "harness": "node --experimental-strip-types src/cli.ts",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@fork-and-go/plan-graph": "*",
-    "@fork-and-go/release-gate": "*",
-    "@fork-and-go/run-budget": "*",
+    "@harness/agent-runner": "*",
+    "@harness/config": "*",
+    "@harness/fidelity-check": "*",
+    "@harness/plan-graph": "*",
+    "@harness/planner": "*",
+    "@harness/release-gate": "*",
+    "@harness/run-budget": "*",
     "yaml": "*"
   },
   "devDependencies": {

@@ -24,13 +24,14 @@ import {
   validateGraph,
   formatIssue,
   type Plan,
-} from "@fork-and-go/plan-graph";
+} from "@harness/plan-graph";
 import {
   freeze as freezeOrchestrator,
   isFrozen,
   readFreezeNote,
   unfreeze as unfreezeOrchestrator,
-} from "@fork-and-go/run-budget";
+} from "@harness/run-budget";
+import type { HarnessConfig } from "@harness/config";
 
 import {
   createBudgetManager,
@@ -100,13 +101,17 @@ export type ReleaseGateHook = (context: {
 
 export interface DaemonOptions {
   repoRoot: string;
+  // Resolved HarnessConfig for the target repo. Drives every repo-specific
+  // path (planDir, completedDir, stateDir, etc.) and the agent provider
+  // the in-process runner uses. Required for production callers; tests
+  // that drive the daemon against a fixture graph can omit and pass
+  // explicit activeDir/completedDir overrides.
+  config?: HarnessConfig;
   activeDir?: string;
   completedDir?: string;
   stateDir?: string;
   logsDir?: string;
   taskRunsDir?: string;
-  runTaskScript?: string;
-  runTaskLoopScript?: string;
   port?: number;
   host?: string;
   tickMs?: number;
@@ -139,9 +144,9 @@ export interface DaemonOptions {
   // When true, don't register signal handlers. Tests turn this off so
   // they can own the process lifecycle.
   registerSignalHandlers?: boolean;
-  // Extra arguments to forward to run_task.sh. Defaults to none (the
-  // runner applies its own defaults including `--phase all`).
-  runTaskExtraArgs?: readonly string[];
+  // (Removed when the daemon switched to in-process runTask. Extra args
+  // used to forward to run_task.sh; the in-process runner takes typed
+  // options via DaemonOptions/config instead.)
   // Sleep helper so tests can fast-forward through the rate-limit backoff.
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
   // Git bridge for the plan-file migration on success. Defaults to the real
@@ -208,11 +213,22 @@ export interface DaemonSnapshot {
 export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
   const now = opts.now ?? (() => new Date());
   const logger = opts.logger ?? createStdoutLogger(now);
+  const config = opts.config;
   const activeDir =
-    opts.activeDir ?? path.join(opts.repoRoot, "docs/exec-plans/active");
+    opts.activeDir ??
+    (config
+      ? path.join(opts.repoRoot, config.planDir)
+      : path.join(opts.repoRoot, "docs/exec-plans/active"));
   const completedDir =
-    opts.completedDir ?? path.join(opts.repoRoot, "docs/exec-plans/completed");
-  const stateDir = opts.stateDir ?? path.join(opts.repoRoot, ".orchestrator");
+    opts.completedDir ??
+    (config
+      ? path.join(opts.repoRoot, config.completedDir)
+      : path.join(opts.repoRoot, "docs/exec-plans/completed"));
+  const stateDir =
+    opts.stateDir ??
+    (config
+      ? path.join(opts.repoRoot, config.stateDir)
+      : path.join(opts.repoRoot, ".orchestrator"));
   const logsDir = opts.logsDir ?? path.join(stateDir, "logs");
   const taskRunsDir = opts.taskRunsDir ?? defaultTaskRunsDir(opts.repoRoot);
   const tickMs = opts.tickMs ?? DEFAULT_TICK_MS;
@@ -234,8 +250,8 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
   const maxRateLimitRetries =
     opts.maxRateLimitRetries ?? DEFAULT_MAX_RATE_LIMIT_RETRIES;
   const sleepFn = opts.sleep ?? defaultSleep;
-  const runTaskExtraArgs = opts.runTaskExtraArgs ?? [];
-  const mainBranch = opts.mainBranch ?? "main";
+  const mainBranch =
+    opts.mainBranch ?? config?.baseBranch ?? "main";
   const gitSync: GitSyncBridge = opts.gitSync ?? {
     returnToMain,
     commitAndPushMigration,
@@ -943,13 +959,14 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
         result = await invoker.invoke({
           planId: plan.id,
           repoRoot: opts.repoRoot,
+          // Production callers always supply a config; the test path that
+          // skips startup validation also supplies one (see DaemonOptions).
+          // The bang here narrows the type inside the runPlan closure.
+          config: config!,
           logsDir,
-          runTaskScript: opts.runTaskScript,
-          runTaskLoopScript: opts.runTaskLoopScript,
           resume: useResume,
-          extraArgs: runTaskExtraArgs,
           // Intentionally no `signal` — /stop is graceful and must not
-          // SIGTERM the active child.
+          // abort the active in-process run.
         });
         // Persist the actual log path from the invoker so /logs/:id and
         // the blocked-reason snippet both point at the real file.

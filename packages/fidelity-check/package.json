@@ -1,5 +1,5 @@
 {
-  "name": "@fork-and-go/fidelity-check",
+  "name": "@harness/fidelity-check",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,8 +13,8 @@
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@fork-and-go/model-client": "*",
-    "@fork-and-go/plan-graph": "*",
+    "@harness/agent-runner": "*",
+    "@harness/plan-graph": "*",
     "zod": "*"
   },
   "devDependencies": {

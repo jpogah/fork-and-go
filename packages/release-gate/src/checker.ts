@@ -9,7 +9,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-import type { Plan } from "@fork-and-go/plan-graph";
+import type { Plan } from "@harness/plan-graph";
 
 import type {
   AcceptanceSpec,

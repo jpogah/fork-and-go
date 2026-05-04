@@ -1,5 +1,5 @@
 {
-  "name": "@fork-and-go/context-ingest",
+  "name": "@harness/context-ingest",
   "version": "0.1.0",
   "private": true,
   "type": "module",

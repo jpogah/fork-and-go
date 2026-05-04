@@ -1,5 +1,5 @@
 {
-  "name": "@fork-and-go/plan-graph",
+  "name": "@harness/plan-graph",
   "version": "0.1.0",
   "private": true,
   "type": "module",

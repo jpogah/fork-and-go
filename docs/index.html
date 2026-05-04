@@ -3,20 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fork-and-Go — The spec-to-merged-PR harness</title>
-  <meta name="description" content="An open-source agent-first harness: URL-to-app reverse engineering, spec-to-plan planning, review, fix, e2e-verify, merge-check, and spec-fidelity auditing. Companion to the book Agent-First Engineering by Johnpaul Ogah." />
+  <title>harness — repo-agnostic agent harness for the Claude Agent SDK and Codex SDK</title>
+  <meta name="description" content="Open-source TypeScript harness that drives the Claude Agent SDK and the Codex SDK through a full plan → implement → review → fix → ship loop on any repo. Config-driven, in-process, no CLI subprocesses." />
 
-  <!-- Open Graph / LinkedIn / Twitter -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Fork-and-Go — The spec-to-merged-PR harness" />
-  <meta property="og:description" content="Open-source agent-first engineering harness with URL-to-app reverse engineering, planner, orchestrator, release gate, and spec-fidelity checker. Companion to Agent-First Engineering (2026)." />
-  <meta property="og:image" content="https://jpogah.github.io/fork-and-go/images/book-cover.png" />
+  <meta property="og:title" content="harness — the repo-agnostic agent harness" />
+  <meta property="og:description" content="Plan, implement, review, fix, and ship code with the Claude Agent SDK or Codex SDK against any repo." />
   <meta property="og:url" content="https://jpogah.github.io/fork-and-go/" />
-  <meta name="twitter:card" content="summary_large_image" />
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='8' fill='%23f6efe1' stroke='%231f1a17' stroke-width='3'/%3E%3Cpath d='M14 32 L24 32 M28 32 L38 32 M42 32 L54 32' stroke='%231f1a17' stroke-width='2' fill='none'/%3E%3Ccircle cx='24' cy='32' r='3' fill='%232f6b72'/%3E%3Ccircle cx='40' cy='32' r='3' fill='%232f6b72'/%3E%3C/svg%3E" />
 
-  <!-- Tailwind via CDN — no build step -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -56,9 +52,8 @@
         linear-gradient(90deg, rgba(43, 38, 35, 0.06) 1px, transparent 1px);
       background-size: 32px 32px;
       background-position: -1px -1px;
+      font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
     }
-
-    /* Hand-drawn irregular corner panels, matching Scrawl + book cover */
     .fg-panel {
       border: 1.5px solid #2b2623;
       border-radius: 14px 18px 12px 20px;
@@ -78,383 +73,242 @@
       border: 1.5px solid #2b2623;
       border-radius: 10px 14px 9px 16px;
       background: #fbf6eb;
-      color: #1f1a17;
       font-weight: 600;
-      font-size: 0.92rem;
-      letter-spacing: 0.01em;
-      box-shadow: 1px 2px 0 rgba(43, 38, 35, 0.25);
-      transition: transform 120ms ease, box-shadow 120ms ease;
-    }
-    .fg-button:hover {
-      transform: translate(-1px, -1px);
+      transition: transform 80ms ease, box-shadow 80ms ease;
       box-shadow: 2px 3px 0 #2b2623;
     }
-    .fg-button-primary {
-      background: #2f6b72;
-      color: #f6efe1;
-      border-color: #1f1a17;
+    .fg-button:hover { transform: translate(-1px, -1px); box-shadow: 3px 4px 0 #2b2623; }
+    .fg-button-primary { background: #2f6b72; color: #fbf6eb; border-color: #2b2623; }
+    pre, code, .fg-mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+    pre { background: #1f1a17; color: #f6efe1; padding: 1rem 1.25rem; border-radius: 8px 14px 8px 12px; overflow-x: auto; font-size: 0.85rem; line-height: 1.55; }
+    h1, h2, h3 { font-family: "Source Serif 4", ui-serif, Georgia, serif; }
+    .fg-tag {
+      display: inline-block; padding: 0.15rem 0.6rem; border: 1px solid #2b2623;
+      border-radius: 999px; font-size: 0.72rem; font-weight: 600; background: #fbf6eb;
     }
-    .fg-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.25rem 0.7rem;
-      border: 1.25px solid #2b2623;
-      border-radius: 999px 999px 998px 999px;
-      background: #f0e6cf;
-      font-size: 0.72rem;
-      font-weight: 500;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-    .fg-code {
-      font-family: "JetBrains Mono", ui-monospace, monospace;
-      background: #1f1a17;
-      color: #f6efe1;
-      border-radius: 10px 14px 9px 16px;
-      padding: 1rem 1.2rem;
-      font-size: 0.88rem;
-      line-height: 1.6;
-      overflow-x: auto;
-      border: 1.5px solid #2b2623;
-    }
-    .fg-code .c { color: #8a7f72; }
-    .fg-code .k { color: #bcd7d8; }
-
-    /* Hand-drawn horizontal rule accent */
-    .fg-rule {
-      height: 3px;
-      background: #2f6b72;
-      border-radius: 2px;
-      transform: rotate(-0.3deg);
-    }
-
-    /* Schematic diagram nodes */
-    .fg-node {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.5rem 1rem;
-      border: 1.5px solid #1f1a17;
-      border-radius: 10px 14px 9px 16px;
-      background: #fbf6eb;
-      font-weight: 600;
-      font-size: 0.82rem;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      min-width: 6.5rem;
-      text-align: center;
-    }
-    .fg-arrow { color: #1f1a17; font-weight: 700; font-size: 1.2rem; }
-    .fg-arrow-loop { color: #2f6b72; font-weight: 700; }
   </style>
 </head>
-<body class="font-sans">
-
-  <!-- Top nav bar -->
-  <header class="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
+<body class="min-h-screen">
+  <header class="max-w-5xl mx-auto px-6 pt-10 pb-6 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 fg-panel flex items-center justify-center" style="border-radius: 10px 12px 9px 14px; padding: 0;">
-        <svg viewBox="0 0 32 32" class="w-6 h-6">
-          <circle cx="8" cy="16" r="2.5" fill="#2f6b72"/>
-          <line x1="11" y1="16" x2="21" y2="16" stroke="#1f1a17" stroke-width="1.5"/>
-          <circle cx="24" cy="16" r="2.5" fill="#2f6b72"/>
-        </svg>
-      </div>
-      <div>
-        <div class="font-bold text-ink text-lg leading-tight">Fork-and-Go</div>
-        <div class="text-xs text-ink-muted">Agent-first engineering harness</div>
-      </div>
+      <div class="w-10 h-10 fg-panel grid place-items-center text-accent text-xl">⌬</div>
+      <span class="font-mono font-semibold text-lg tracking-tight">harness</span>
     </div>
-    <nav class="hidden md:flex items-center gap-2 sm:gap-4 text-sm font-medium text-ink-muted">
-      <a href="#quickstart" class="hover:text-ink">Quickstart</a>
-      <a href="#case-study" class="hover:text-ink">Case study</a>
-      <a href="#book" class="hover:text-ink">The book</a>
-      <a href="https://www.amazon.com/dp/B0GYBLMY5L" class="hover:text-ink">Amazon</a>
-      <a href="https://github.com/jpogah/fork-and-go" class="fg-button">
-        <svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.17c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.85 1.24 1.85 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.77.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.94 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23.96-.27 1.98-.4 3-.41 1.02.01 2.04.14 3 .41 2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.62-2.81 5.63-5.49 5.93.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58C20.57 22.3 24 17.79 24 12.5 24 5.87 18.63.5 12 .5z"/></svg>
-        Star on GitHub
-      </a>
+    <nav class="flex items-center gap-4 text-sm">
+      <a href="#quick-start" class="hover:text-accent">Quick start</a>
+      <a href="#how-it-works" class="hover:text-accent">How it works</a>
+      <a href="HARNESS_ENGINEERING.md" class="hover:text-accent">Design notes</a>
+      <a href="https://github.com/jpogah/fork-and-go" class="fg-button">GitHub →</a>
     </nav>
   </header>
 
-  <!-- HERO -->
-  <section class="max-w-5xl mx-auto px-6 pt-12 sm:pt-20 pb-16 sm:pb-24">
-    <span class="fg-chip mb-6">URL-to-app + planner + fidelity shipped · MIT License · 2026</span>
-    <h1 class="text-5xl sm:text-7xl font-extrabold tracking-tight text-ink leading-[0.95] mt-4">
-      The harness that ships<br/>
-      merged PRs <em class="italic text-accent font-semibold">while you sleep.</em>
-    </h1>
-    <p class="mt-8 text-lg sm:text-xl text-ink-muted max-w-3xl font-serif leading-relaxed">
-      Fork-and-Go is an open-source agent-first engineering harness. It can start from a public
-      URL, product spec, or plan, then wraps your coding agent in reverse engineering, spec-to-plan
-      planning, review, fix, e2e-verify, merge-check, and spec-fidelity audit phases — and drives each execution plan from an approved spec to a merged pull request
-      without human intervention between phases. Companion to the book <em>Agent-First Engineering: A Field Report on Shipping
-      Software With AI Coding Agents</em>.
-    </p>
-    <div class="mt-10 flex flex-wrap gap-3">
-      <a href="#quickstart" class="fg-button fg-button-primary">
-        <span>Quickstart</span>
-        <span>→</span>
-      </a>
-      <a href="https://github.com/jpogah/fork-and-go" class="fg-button">
-        <span>View on GitHub</span>
-      </a>
-      <a href="https://www.amazon.com/dp/B0GYBLMY5L" class="fg-button">
-        <span>Read the book</span>
-      </a>
-      <a href="https://scrawl.solidrocksoftwarecloud.com" class="fg-button">
-        <span>Try the case-study demo</span>
-      </a>
-    </div>
-  </section>
+  <main class="max-w-5xl mx-auto px-6 pb-24 space-y-20">
 
-  <!-- PROBLEM -->
-  <section class="max-w-5xl mx-auto px-6 pb-16 sm:pb-24">
-    <div class="fg-panel p-8 sm:p-12">
-      <span class="fg-chip mb-4">The hour after the demo</span>
-      <h2 class="text-3xl sm:text-4xl font-bold text-ink mt-4 leading-tight">
-        The agent writes the code. But the code isn't the artifact.<br/>
-        <span class="text-accent">The merged PR is.</span>
-      </h2>
-      <p class="mt-6 text-base sm:text-lg text-ink-muted font-serif leading-relaxed">
-        Between <em>"the code is written"</em> and <em>"the PR is merged"</em> sits a grinding
-        tower of tasks — diff review, severity judgment, test gaps, formatting drift, PR body
-        authorship, CI wait, review-comment triage, merge-conflict resolution, e2e verification
-        — that nobody wants to automate because each one looks trivial and all of them together
-        look impossible.
-      </p>
-      <p class="mt-5 text-base sm:text-lg text-ink-muted font-serif leading-relaxed">
-        Fork-and-Go automates the tower. Site reverse-engineering, planner, daemon, release gate,
-        and fidelity checker coordinate the loop around your coding agent. You supply a URL, spec,
-        or plan; it ships a PR.
-      </p>
-    </div>
-  </section>
-
-  <!-- LOOP DIAGRAM -->
-  <section class="max-w-5xl mx-auto px-6 pb-16 sm:pb-24">
-    <h3 class="text-2xl font-bold text-ink mb-6">The loop</h3>
-    <div class="fg-panel p-6 sm:p-10 overflow-x-auto">
-      <div class="flex flex-col items-center gap-8">
-        <!-- Linear flow -->
-        <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-          <span class="fg-node">URL</span>
-          <span class="fg-arrow">→</span>
-          <span class="fg-node">Spec</span>
-          <span class="fg-arrow">→</span>
-          <span class="fg-node">Planning</span>
-          <span class="fg-arrow">→</span>
-          <span class="fg-node">Implement</span>
-          <span class="fg-arrow">→</span>
-          <span class="fg-node">Review</span>
-          <span class="fg-arrow">→</span>
-          <span class="fg-node">E2E-verify</span>
-          <span class="fg-arrow">→</span>
-          <span class="fg-node" style="background: #bcd7d8;">Merge</span>
+    <!-- Hero -->
+    <section class="grid md:grid-cols-5 gap-8 items-center pt-6">
+      <div class="md:col-span-3 space-y-6">
+        <span class="fg-tag">Open source · TypeScript · MIT</span>
+        <h1 class="text-4xl md:text-5xl font-bold leading-[1.1] tracking-tight">
+          A repo-agnostic harness for the <span class="text-accent">Claude Agent SDK</span> and <span class="text-accent">Codex SDK</span>.
+        </h1>
+        <p class="text-lg text-ink-muted leading-relaxed">
+          Drop a <code class="fg-mono text-base bg-paper-strong px-1.5 py-0.5 rounded">harness.config.json</code> into any repo. The harness reads your plans, drives a coding agent through implement → review → fix → ship, and migrates the plan file when the PR merges. No CLI subprocesses. No direct API calls. Just the official SDKs, in-process.
+        </p>
+        <div class="flex flex-wrap items-center gap-3 pt-2">
+          <a href="#quick-start" class="fg-button fg-button-primary">Get started →</a>
+          <a href="https://github.com/jpogah/fork-and-go" class="fg-button">View on GitHub</a>
         </div>
-        <!-- Loop-back -->
-        <div class="flex items-center gap-3 sm:gap-4">
-          <span class="fg-arrow-loop text-sm">↑ fix loop ↑</span>
-          <span class="fg-node" style="border-color: #2f6b72; color: #2f6b72;">Fix</span>
-          <span class="fg-arrow-loop text-sm">↑ findings ↑</span>
+      </div>
+      <div class="md:col-span-2">
+        <div class="fg-panel p-5">
+          <div class="text-xs font-mono text-ink-soft mb-3">$ harness run 0001 --repo /path/to/your-app</div>
+<pre class="text-[0.72rem] leading-relaxed">[implement] thread.started
+[implement] turn.started
+[implement] command.executed: $ rg -n "TODO" src/
+[implement] file.changed: [completed] add src/feature.ts
+[implement] file.changed: [completed] update src/index.ts
+[implement] turn.completed (104680/1095 tok)
+
+{
+  "ok": true,
+  "planId": "0001",
+  "branch": "task/0001-feature",
+  "phasesRun": ["implement"],
+  "tokensTotal": { "inputTokens": 104680, ... }
+}</pre>
         </div>
-        <p class="text-sm text-ink-muted font-serif italic text-center max-w-2xl">
-          The site reverse-engineer turns public URLs into improved-rebuild specs. The planner emits executable plan files from a product spec. Review findings, failing
-          Playwright tests, and fidelity drift feed back into Fix or re-planning. Convergence,
-          then merge-check labels for auto-merge.
-        </p>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- SHIPPED CAPABILITIES -->
-  <section class="max-w-5xl mx-auto px-6 pb-16 sm:pb-24">
-    <h3 class="text-2xl font-bold text-ink mb-6">What's shipped now</h3>
-    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+    <!-- What it is -->
+    <section class="space-y-6">
+      <h2 class="text-2xl font-bold tracking-tight">What it is</h2>
+      <div class="grid md:grid-cols-3 gap-5">
+        <div class="fg-panel-soft p-5 space-y-2">
+          <div class="text-accent font-semibold text-sm">Repo-agnostic</div>
+          <p class="text-sm text-ink-muted leading-relaxed">Every path — plan dir, app paths, dev server, e2e command, base branch — is read from <code class="fg-mono">harness.config.{json,ts}</code> in your target repo. The harness has no opinion about your layout.</p>
+        </div>
+        <div class="fg-panel-soft p-5 space-y-2">
+          <div class="text-accent font-semibold text-sm">SDK-only</div>
+          <p class="text-sm text-ink-muted leading-relaxed">Every harness role — implementer, reviewer, planner, fidelity-checker — runs through <code class="fg-mono">@harness/agent-runner</code>, which wraps the official Claude Agent SDK and Codex SDK. No <code class="fg-mono">claude</code> / <code class="fg-mono">codex</code> CLI subprocesses. No direct OpenAI or Anthropic API calls.</p>
+        </div>
+        <div class="fg-panel-soft p-5 space-y-2">
+          <div class="text-accent font-semibold text-sm">In-process</div>
+          <p class="text-sm text-ink-muted leading-relaxed">The 1,375-line bash runner is gone. The orchestrator daemon calls <code class="fg-mono">runTask()</code> directly. Logs, token tracking, rate-limit detection — all typed, all visible.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Loop -->
+    <section id="how-it-works" class="space-y-6">
+      <h2 class="text-2xl font-bold tracking-tight">How it works</h2>
+      <p class="text-ink-muted">A plan moves through phases. Each phase is its own agent role: a different prompt, a different tool permission set, a different convergence criterion.</p>
       <div class="fg-panel p-6">
-        <span class="fg-chip mb-3">URL → spec</span>
-        <h4 class="text-xl font-bold text-ink mt-4">Site reverse-engineering</h4>
-        <p class="mt-4 text-sm text-ink-muted font-serif leading-relaxed">
-          <code class="font-mono bg-paper-strong px-1.5 py-0.5 rounded">./scripts/reverse-site.sh</code>
-          captures public sites with Playwright, writes source evidence, and generates improved
-          rebuild specs with guardrails against brand or source copying.
-        </p>
+<pre class="text-[0.78rem] leading-relaxed">       ┌──────── plan (planDir/NNNN-*.md) ────────┐
+       │                                          │
+       ▼                                          │
+ ┌──────────┐    ┌────────┐    ┌─────┐    ┌────────────┐
+ │implement │───▶│ review │───▶│ fix │───▶│ preflight  │┘
+ └──────────┘    └────────┘ ◀──┴─────┘    └────────────┘
+                     │  "No blocking findings."
+                     ▼
+              ┌─────────────┐    ┌──────────┐
+              │ prepare-pr  │───▶│ open PR  │
+              └─────────────┘    └──────────┘
+                                       │
+                                       ▼
+                              ┌─────────────────┐
+                              │ wait for CI     │
+                              │ + e2e-verify    │
+                              └─────────────────┘
+                                       │
+                                       ▼
+                              ┌─────────────────┐
+                              │ merge-readiness │
+                              │ → label + merge │
+                              └─────────────────┘</pre>
       </div>
-      <div class="fg-panel p-6">
-        <span class="fg-chip mb-3">Spec → plans</span>
-        <h4 class="text-xl font-bold text-ink mt-4">Planner agent</h4>
-        <p class="mt-4 text-sm text-ink-muted font-serif leading-relaxed">
-          <code class="font-mono bg-paper-strong px-1.5 py-0.5 rounded">./scripts/plan.sh</code>
-          reads product specs, pulls repo context, and emits ordered execution plans that conform
-          to the plan-graph schema.
-        </p>
+      <div class="grid md:grid-cols-3 gap-5 pt-2">
+        <div class="space-y-1">
+          <div class="font-semibold text-sm">exec mode</div>
+          <p class="text-sm text-ink-muted leading-relaxed">Implementer / fix / prepare-pr. Full tools, file edits, command execution. Bypasses tool prompts.</p>
+        </div>
+        <div class="space-y-1">
+          <div class="font-semibold text-sm">review mode</div>
+          <p class="text-sm text-ink-muted leading-relaxed">Reviewer / merge-checker / fidelity. Read-only repo access. Sentinels gate convergence.</p>
+        </div>
+        <div class="space-y-1">
+          <div class="font-semibold text-sm">complete mode</div>
+          <p class="text-sm text-ink-muted leading-relaxed">Planner / site-reverse JSON output. Single-turn, no tools by default. Optional output schema.</p>
+        </div>
       </div>
-      <div class="fg-panel p-6">
-        <span class="fg-chip mb-3">Model client</span>
-        <h4 class="text-xl font-bold text-ink mt-4">Generic model-client package</h4>
-        <p class="mt-4 text-sm text-ink-muted font-serif leading-relaxed">
-          <code class="font-mono bg-paper-strong px-1.5 py-0.5 rounded">@fork-and-go/model-client</code>
-          provides the harness-level model client, using Codex CLI by default with an OpenAI
-          backend available via environment variables.
-        </p>
-      </div>
-      <div class="fg-panel p-6">
-        <span class="fg-chip mb-3">Drift guard</span>
-        <h4 class="text-xl font-bold text-ink mt-4">Spec-fidelity checker</h4>
-        <p class="mt-4 text-sm text-ink-muted font-serif leading-relaxed">
-          <code class="font-mono bg-paper-strong px-1.5 py-0.5 rounded">./scripts/check-fidelity.sh</code>
-          audits delivered work against the product spec and can suspend active plans when drift
-          crosses the configured threshold.
-        </p>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- QUICKSTART -->
-  <section id="quickstart" class="max-w-5xl mx-auto px-6 pb-16 sm:pb-24">
-    <h3 class="text-2xl font-bold text-ink mb-6">Quickstart</h3>
-    <div class="fg-panel p-6 sm:p-10">
-      <p class="text-base text-ink-muted font-serif mb-5">
-        Fork the repo, bootstrap, plan from a spec, then run the plan loop. The harness expects Node 22+, <code
-        class="font-mono text-sm bg-paper-strong px-1.5 py-0.5 rounded">gh</code> CLI with
-        auth, and the Codex or Claude Code CLI configured.
-      </p>
-      <pre class="fg-code"><span class="c"># 1. Fork or clone</span>
-git clone https://github.com/jpogah/fork-and-go.git my-app
-<span class="k">cd</span> my-app && npm install
-
-<span class="c"># 2. Preview generated plans from the example product spec</span>
-./scripts/plan.sh docs/product-specs/EXAMPLE.md --preview
-
-<span class="c"># 3. Or start from a public site and generate an improved rebuild spec</span>
-npx playwright install chromium
-./scripts/reverse-site.sh https://online-video-cutter.com/ \
-  --name video-cutter-rebuild \
-  --planner-preview
-
-<span class="c"># 4. Or write your first plan by hand</span>
-cp docs/exec-plans/execution-plan-template.md \
-  docs/exec-plans/active/0001-my-first-feature.md
-./scripts/plan-graph.sh validate
-
-<span class="c"># 5. Start the orchestrator daemon</span>
-./scripts/orchestrator.sh start-bg
-
-<span class="c"># 6. Resume — it picks up the earliest eligible plan automatically</span>
-curl -X POST http://localhost:4500/resume
-
-<span class="c"># 7. Watch it ship</span>
-tail -f .orchestrator/orchestrator.log</pre>
-      <div class="mt-6 flex flex-wrap gap-3">
-        <a href="https://github.com/jpogah/fork-and-go#readme" class="fg-button">Full README</a>
-        <a href="https://github.com/jpogah/fork-and-go/tree/main/docs/prompts" class="fg-button">Phase prompts</a>
-        <a href="https://github.com/jpogah/fork-and-go/blob/main/docs/workflows/agent-delivery-loop.md" class="fg-button">Delivery loop spec</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- CASE STUDY -->
-  <section id="case-study" class="max-w-5xl mx-auto px-6 pb-16 sm:pb-24">
-    <h3 class="text-2xl font-bold text-ink mb-6">Case study — Scrawl</h3>
-    <div class="fg-panel p-6 sm:p-10">
-      <div class="grid md:grid-cols-2 gap-8 items-center">
+    <!-- Quick start -->
+    <section id="quick-start" class="space-y-6">
+      <h2 class="text-2xl font-bold tracking-tight">Quick start</h2>
+      <div class="grid md:grid-cols-2 gap-6">
         <div>
-          <span class="fg-chip mb-3">Collaborative whiteboard · AI-assisted</span>
-          <h4 class="text-2xl font-bold text-ink mt-4">Thirteen plans. One harness. One app that actually ships.</h4>
-          <p class="mt-5 text-base text-ink-muted font-serif leading-relaxed">
-            Scrawl is a collaborative whiteboard with hand-drawn aesthetic and AI diagram
-            generation. Every feature — canvas, selection transforms, smart connectors,
-            component palette, AI connectors, chat panel — was shipped by Fork-and-Go driving
-            Codex through the six-phase harness. The repo is private (Scrawl is the case study,
-            not the reference implementation), but the live demo is browseable today.
-          </p>
-          <div class="mt-6 flex flex-wrap gap-3">
-            <a href="https://scrawl.solidrocksoftwarecloud.com" class="fg-button fg-button-primary">
-              <span>Open Scrawl →</span>
-            </a>
-          </div>
+          <div class="text-xs font-mono text-ink-soft mb-2">1. In your target repo, commit harness.config.json</div>
+<pre>{
+  "agent": {
+    "provider": "claude",
+    "maxReviewPasses": 5
+  },
+  "appPaths": ["src", "app"],
+  "baseBranch": "main",
+  "devServer": {
+    "command": "npm run dev",
+    "url":     "http://localhost:3000"
+  },
+  "e2e": {
+    "command": "npm run e2e",
+    "artifactDirs": [
+      "playwright-report",
+      "test-results"
+    ]
+  }
+}</pre>
         </div>
-        <a href="https://scrawl.solidrocksoftwarecloud.com" class="block fg-panel-soft p-3 hover:shadow-[2px_3px_0_#2b2623] transition-shadow">
-          <div class="text-xs text-ink-soft uppercase tracking-wider mb-2 px-1">scrawl.solidrocksoftwarecloud.com</div>
-          <img
-            src="images/scrawl-demo.png"
-            alt="Screenshot of the Scrawl editor — toolbar, tool rail, style defaults, component library, infinite canvas, and AI assistant panel"
-            class="w-full rounded-md border border-rule-soft"
-            loading="lazy"
-          />
+        <div>
+          <div class="text-xs font-mono text-ink-soft mb-2">2. Point the harness at it</div>
+<pre># One-shot: drive a single plan
+HARNESS_TARGET_REPO=/path/to/your-app \
+  npm run harness -- run 0001 --phase all
+
+# Long-running: the daemon picks up
+# new plans + observes merges
+HARNESS_TARGET_REPO=/path/to/your-app \
+  npm run harness -- daemon start
+
+# Operator surface (port 4500)
+curl localhost:4500/state
+curl -X POST localhost:4500/freeze
+curl -X POST localhost:4500/resume</pre>
+        </div>
+      </div>
+      <p class="text-sm text-ink-muted">
+        Both providers (<code class="fg-mono">claude</code> and <code class="fg-mono">codex</code>) implement all three modes. Switch by editing one config field; no code change in your harness or your target repo.
+      </p>
+    </section>
+
+    <!-- Why -->
+    <section class="space-y-6">
+      <h2 class="text-2xl font-bold tracking-tight">Why this shape</h2>
+      <div class="grid md:grid-cols-3 gap-5">
+        <div class="space-y-2">
+          <div class="font-semibold">Provider portability</div>
+          <p class="text-sm text-ink-muted leading-relaxed">The harness should outlive any one model. Replacing the SDK is a config flag, not a rewrite. That forced the agent-runner abstraction.</p>
+        </div>
+        <div class="space-y-2">
+          <div class="font-semibold">Repo portability</div>
+          <p class="text-sm text-ink-muted leading-relaxed">The harness is its own product. Coupling it to one target repo's layout meant every fork rewrote half the runner. That forced <code class="fg-mono">harness.config</code>.</p>
+        </div>
+        <div class="space-y-2">
+          <div class="font-semibold">Honest infrastructure</div>
+          <p class="text-sm text-ink-muted leading-relaxed">Bash hid bugs behind exit codes and tee'd logs. Every weird daemon failure traced back to a string-parse on stdout. Porting to TypeScript made these typed and visible.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Docs -->
+    <section class="space-y-6">
+      <h2 class="text-2xl font-bold tracking-tight">Reference</h2>
+      <div class="grid md:grid-cols-3 gap-5">
+        <a href="HARNESS_ENGINEERING.md" class="fg-panel p-5 space-y-2 block hover:bg-paper-strong">
+          <div class="font-semibold">Harness engineering</div>
+          <p class="text-sm text-ink-muted leading-relaxed">Design notes — north star, the loop, convergence rules, daemon architecture, lessons.</p>
+        </a>
+        <a href="CONFIG.md" class="fg-panel p-5 space-y-2 block hover:bg-paper-strong">
+          <div class="font-semibold">harness.config reference</div>
+          <p class="text-sm text-ink-muted leading-relaxed">Full Zod schema, two complete examples (Next.js+Playwright, Codex+Python), env-var override table.</p>
+        </a>
+        <a href="AGENT_RUNNER.md" class="fg-panel p-5 space-y-2 block hover:bg-paper-strong">
+          <div class="font-semibold">@harness/agent-runner</div>
+          <p class="text-sm text-ink-muted leading-relaxed">Three-mode contract (exec / review / complete), CompletionClient adapter, provider extension guide.</p>
         </a>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- BOOK -->
-  <section id="book" class="max-w-5xl mx-auto px-6 pb-16 sm:pb-24">
-    <div class="fg-panel p-6 sm:p-10">
-      <div class="grid md:grid-cols-[1fr_2fr] gap-8 items-center">
+    <!-- Footer CTA -->
+    <section class="pt-6">
+      <div class="fg-panel p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <img src="images/book-cover.png" alt="Agent-First Engineering book cover" class="w-full rounded-lg border border-rule shadow-[2px_3px_0_#2b2623]" />
+          <div class="font-semibold text-lg">Try it on your repo.</div>
+          <p class="text-sm text-ink-muted mt-1">MIT licensed. TypeScript monorepo. Node 22+.</p>
         </div>
-        <div>
-          <span class="fg-chip mb-3">Book · Published on Amazon · 2026</span>
-          <h3 class="text-3xl font-bold text-ink mt-4 leading-tight">
-            Agent-First Engineering
-          </h3>
-          <p class="text-lg font-serif italic text-ink-muted mt-2">
-            A Field Report on Shipping Software With AI Coding Agents
-          </p>
-          <p class="mt-6 text-base text-ink-muted font-serif leading-relaxed">
-            The field report that produced this harness is published on Amazon. Seventeen chapters on agent
-            orchestration, harness engineering, and the specific frictions that shaped every
-            primitive in Fork-and-Go. Grounded in three public sources: Google's <em>Agents</em>
-            whitepaper (2024), Anthropic's <em>Harness Design</em> post (2025), and OpenAI's
-            <em>Harness Engineering</em> post (2026).
-          </p>
-          <p class="mt-4 text-sm text-ink-soft font-serif">
-            By <strong class="text-ink">Johnpaul Ogah</strong> — engineering leader, Austin, Texas.
-          </p>
-          <div class="mt-6 flex flex-wrap gap-3">
-            <a href="https://www.amazon.com/dp/B0GYBLMY5L" class="fg-button fg-button-primary">
-              Buy on Amazon
-            </a>
-            <a href="mailto:johnpaul.ogah@solidrocksoftwarecloud.com?subject=Agent-First%20Engineering" class="fg-button">
-              Contact the author
-            </a>
-          </div>
+        <div class="flex gap-3">
+          <a href="https://github.com/jpogah/fork-and-go" class="fg-button fg-button-primary">github.com/jpogah/fork-and-go →</a>
+          <a href="HARNESS_ENGINEERING.md" class="fg-button">Read the design notes</a>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- FOOTER -->
-  <footer class="max-w-5xl mx-auto px-6 pb-16 pt-8">
-    <div class="fg-rule mb-8 w-40"></div>
-    <div class="grid md:grid-cols-3 gap-8 text-sm text-ink-muted font-serif">
-      <div>
-        <div class="font-bold text-ink text-base mb-2">Fork-and-Go</div>
-        <p>An agent-first engineering harness. Fork it, run it against your own repo, file issues with what breaks. Every durable fix is welcomed upstream.</p>
-      </div>
-      <div>
-        <div class="font-bold text-ink text-base mb-2">Links</div>
-        <ul class="space-y-1.5">
-          <li><a href="https://github.com/jpogah/fork-and-go" class="hover:text-ink underline underline-offset-2">Source on GitHub</a></li>
-          <li><a href="https://github.com/jpogah/fork-and-go/blob/main/LICENSE" class="hover:text-ink underline underline-offset-2">MIT License</a></li>
-          <li><a href="https://github.com/jpogah/fork-and-go/issues" class="hover:text-ink underline underline-offset-2">Issues &amp; field reports</a></li>
-          <li><a href="https://www.amazon.com/dp/B0GYBLMY5L" class="hover:text-ink underline underline-offset-2">Agent-First Engineering on Amazon</a></li>
-          <li><a href="https://scrawl.solidrocksoftwarecloud.com" class="hover:text-ink underline underline-offset-2">Scrawl case-study demo</a></li>
-        </ul>
-      </div>
-      <div>
-        <div class="font-bold text-ink text-base mb-2">Author</div>
-        <p><strong class="text-ink">Johnpaul Ogah</strong> · Austin, Texas.</p>
-        <p class="mt-1"><a href="mailto:johnpaul.ogah@solidrocksoftwarecloud.com" class="hover:text-ink underline underline-offset-2">johnpaul.ogah@solidrocksoftwarecloud.com</a></p>
-      </div>
-    </div>
-    <div class="mt-10 pt-6 border-t border-rule-soft text-xs text-ink-soft">
-      © 2026 Johnpaul Ogah · Fork-and-Go is MIT-licensed · This page is served from
-      <code class="font-mono bg-paper-strong px-1.5 py-0.5 rounded">jpogah.github.io/fork-and-go</code>
-    </div>
+  </main>
+
+  <footer class="max-w-5xl mx-auto px-6 pb-10 text-xs text-ink-soft flex items-center justify-between">
+    <span>© harness · MIT licensed</span>
+    <span>Pages source: <code class="fg-mono">main:/docs/index.html</code></span>
   </footer>
-
 </body>
 </html>

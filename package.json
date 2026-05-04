@@ -1,8 +1,8 @@
 {
-  "name": "fork-and-go",
+  "name": "harness",
   "version": "0.1.0",
   "private": true,
-  "description": "Agent-first delivery pipelines that ship while you're asleep.",
+  "description": "Repo-agnostic agent harness driven by the Claude Agent SDK and the Codex SDK.",
   "license": "MIT",
   "workspaces": [
     "packages/*",
@@ -13,8 +13,8 @@
   },
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "plan-graph": "./scripts/plan-graph.sh"
+    "test": "vitest run",
+    "harness": "node --experimental-strip-types apps/orchestrator/src/cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,5 +1,5 @@
 {
-  "name": "@fork-and-go/run-budget",
+  "name": "@harness/run-budget",
   "version": "0.1.0",
   "private": true,
   "type": "module",

@@ -1,6 +1,6 @@
 import type { Buffer } from "node:buffer";
 
-import type { PlannerRunOutcome } from "@fork-and-go/planner";
+import type { PlannerRunOutcome } from "@harness/planner";
 
 export const VIEWPORT_PRESETS = {
   desktop: { width: 1440, height: 1000 },

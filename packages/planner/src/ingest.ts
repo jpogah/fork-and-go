@@ -14,8 +14,8 @@ import {
   matchContext,
   UNTRUSTED_LABEL,
   type ContextParseWarning,
-} from "@fork-and-go/context-ingest";
-import { loadPlans, type Plan } from "@fork-and-go/plan-graph";
+} from "@harness/context-ingest";
+import { loadPlans, type Plan } from "@harness/plan-graph";
 
 export interface PlanningContext {
   spec: {
@@ -66,7 +66,7 @@ export interface IngestOptions {
   // `<contextDir>/inbox/*.md`, parses the `source` / `scope` frontmatter,
   // and includes the bodies whose scope resolves to `all` or `planner`.
   // Larger files are truncated and a per-prompt aggregate cap is enforced
-  // by the matcher in @fork-and-go/context-ingest.
+  // by the matcher in @harness/context-ingest.
   contextDir?: string;
   // Plan 0054: paired acceptance file. When provided, the ingest passes
   // the tag+description list to the decompose prompt so the LLM can claim

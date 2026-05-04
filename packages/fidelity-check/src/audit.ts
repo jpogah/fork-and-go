@@ -6,11 +6,11 @@
 import { ZodError } from "zod";
 
 import {
-  type ModelClient,
-  type ModelRequest,
-  type ModelResponse,
-  type ModelUsage,
-} from "@fork-and-go/model-client";
+  type CompletionClient as ModelClient,
+  type CompletionRequest as ModelRequest,
+  type CompletionResponse as ModelResponse,
+  type CompletionUsage as ModelUsage,
+} from "@harness/agent-runner";
 
 import type { FidelityContext } from "./context-builder.ts";
 import { auditOutputSchema, type AuditOutput } from "./schemas.ts";
@@ -18,8 +18,9 @@ import { auditOutputSchema, type AuditOutput } from "./schemas.ts";
 export interface AuditDeps {
   modelClient: ModelClient;
   systemPrompt: string;
-  defaultModel: string;
-  repairModel: string;
+  // When undefined, the underlying agent SDK picks its provider-default model.
+  defaultModel?: string;
+  repairModel?: string;
   maxRepairAttempts?: number;
 }
 
@@ -138,7 +139,7 @@ function formatZodError(err: ZodError): string {
 function buildAuditRequest(
   context: FidelityContext,
   systemPrompt: string,
-  model: string,
+  model: string | undefined,
 ): ModelRequest {
   const compressedPlans = context.plans.map((p) => ({
     id: p.id,
@@ -174,7 +175,7 @@ function buildAuditRequest(
   return {
     system: systemPrompt,
     messages: [userMessage],
-    model,
+    ...(model !== undefined ? { model } : {}),
   };
 }
 
@@ -182,11 +183,11 @@ function buildRepairRequest(
   base: ModelRequest,
   lastResponseText: string,
   lastError: string,
-  repairModel: string,
+  repairModel: string | undefined,
 ): ModelRequest {
   return {
     ...base,
-    model: repairModel,
+    ...(repairModel !== undefined ? { model: repairModel } : {}),
     messages: [
       ...base.messages,
       { role: "assistant", content: lastResponseText },

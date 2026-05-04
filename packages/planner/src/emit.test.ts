@@ -14,7 +14,7 @@ import process from "node:process";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { Plan } from "@fork-and-go/plan-graph";
+import type { Plan } from "@harness/plan-graph";
 
 import { composePlanFile, emit, previewEmit, type EmitInput } from "./emit.ts";
 import type { PlanProposal } from "./schemas.ts";

@@ -3,7 +3,7 @@
 // plan-graph validator requires the directory and the status to agree, so
 // we must update both in one shot.
 //
-// Lives in the orchestrator (not @fork-and-go/plan-graph) because the
+// Lives in the orchestrator (not @harness/plan-graph) because the
 // orchestrator is the only caller that needs it today; promote to the
 // shared package once a second caller emerges.
 
@@ -21,7 +21,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 
-import { loadPlanFile, splitFrontmatter, type Plan } from "@fork-and-go/plan-graph";
+import { loadPlanFile, splitFrontmatter, type Plan } from "@harness/plan-graph";
 import YAML from "yaml";
 
 export interface PlanDirs {

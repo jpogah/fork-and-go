@@ -3,7 +3,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { Plan } from "@fork-and-go/plan-graph";
+import type { Plan } from "@harness/plan-graph";
 
 import { checkAcceptance, parseEnvTemplate } from "./checker.ts";
 import { parseAcceptanceContent } from "./parser.ts";

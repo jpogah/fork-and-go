@@ -4,7 +4,7 @@
 // payloads are intentionally small and schemaless beyond what an operator
 // needs to reconstruct a run — tokens, model, cost, proposal ids, failures.
 
-import type { ModelUsage } from "@fork-and-go/model-client";
+import type { CompletionUsage as ModelUsage } from "@harness/agent-runner";
 
 export type PlannerAuditKind =
   | "planning.started"
