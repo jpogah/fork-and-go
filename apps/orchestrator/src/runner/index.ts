@@ -10,7 +10,6 @@
 // `docs/exec-plans`, or `npm run dev` anywhere in this module tree.
 
 import {
-  appendFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -23,6 +22,11 @@ import path from "node:path";
 import { createAgentRunner } from "@harness/agent-runner";
 import { resolvePaths } from "@harness/config";
 
+import { noopEventSink, type EventSink } from "../event-bus.ts";
+import {
+  createFileLogSink,
+  type LogSink,
+} from "../log-sink.ts";
 import {
   ensureBranch,
   ghReady,
@@ -124,20 +128,41 @@ export async function runTask(
     /* ignore on FS that doesn't support symlinks */
   }
 
-  const logPath = path.join(paths.logsDir, `${planResolution.planId}-${runId}.log`);
-  mkdirSync(path.dirname(logPath), { recursive: true });
-  writeFileSync(logPath, "", "utf8");
+  const defaultLogPath = path.join(
+    paths.logsDir,
+    `${planResolution.planId}-${runId}.log`,
+  );
+  const logSink: LogSink =
+    options.logSink ?? createFileLogSink({ filePath: defaultLogPath });
+  const logPath = logSink.uri();
 
   const baseLogger = options.logger;
   const log = (line: string): void => {
-    const stamped = `[${new Date().toISOString()}] ${line}\n`;
-    try {
-      appendFileSync(logPath, stamped, "utf8");
-    } catch {
-      // log writing is best-effort
-    }
+    void Promise.resolve(logSink.write(line)).catch(() => {
+      // best-effort; sink failures must never block the runner
+    });
     baseLogger?.(line);
   };
+
+  // Apply secrets from the provider into env *before* constructing the
+  // agent runner so the SDKs see them on first read. This is the cloud's
+  // hook for BYO key injection. We snapshot prior env values and restore
+  // them on `runTask` exit so back-to-back runs in the same process don't
+  // leak keys across tenants.
+  const secretsRestore: Array<() => void> = [];
+  if (options.secrets) {
+    for (const name of ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GH_TOKEN"]) {
+      const value = await Promise.resolve(options.secrets.get(name));
+      if (value !== undefined) {
+        const prior = process.env[name];
+        process.env[name] = value;
+        secretsRestore.push(() => {
+          if (prior === undefined) delete process.env[name];
+          else process.env[name] = prior;
+        });
+      }
+    }
+  }
 
   // Resolve agent runner.
   const runner =
@@ -176,11 +201,25 @@ export async function runTask(
     dryRun: options.dryRun ?? false,
     runner,
     log,
+    logSink,
+    events: options.eventSink ?? noopEventSink,
+    ...(options.projectId !== undefined ? { projectId: options.projectId } : {}),
     tokensUsed: [],
   };
 
   log(`run ${runId} starting phase=${phase} branch=${branch}`);
   if (ctx.localOnly) log("local-only mode: skipping push, PR, and merge ops");
+  await Promise.resolve(
+    ctx.events.emit({
+      kind: "run_started",
+      at: new Date().toISOString(),
+      planId: ctx.planId,
+      branch,
+      runId,
+      runDir,
+      ...(ctx.projectId ? { projectId: ctx.projectId } : {}),
+    }),
+  );
 
   try {
     if (
@@ -224,14 +263,14 @@ export async function runTask(
       lastResult = await runReviewFixLoop(ctx);
       phasesRun.push("review", "fix");
       if (!lastResult.ok)
-        return failure(ctx, lastResult, runDir, logPath);
+        return await failure(ctx, lastResult, runDir, logPath);
       lastResult = await runPreparePr(ctx);
       phasesRun.push("prepare-pr");
       if (!lastResult.ok)
-        return failure(ctx, lastResult, runDir, logPath);
+        return await failure(ctx, lastResult, runDir, logPath);
       lastResult = await runMergeCheck(ctx);
       phasesRun.push("merge-check");
-      return finalize(ctx, lastResult, runDir, logPath, phasesRun);
+      return await finalize(ctx, lastResult, runDir, logPath, phasesRun);
     }
 
     switch (phase) {
@@ -304,26 +343,62 @@ export async function runTask(
       }
     }
 
-    return finalize(ctx, lastResult, runDir, logPath, phasesRun);
+    return await finalize(ctx, lastResult, runDir, logPath, phasesRun);
   } catch (err) {
     log(`runner error: ${err instanceof Error ? err.message : String(err)}`);
+    const reason = err instanceof Error ? err.message : String(err);
+    await Promise.resolve(
+      ctx.events.emit({
+        kind: "run_finished",
+        at: new Date().toISOString(),
+        planId: planResolution.planId,
+        runId,
+        branch,
+        ok: false,
+        reason,
+        logPath,
+        ...(ctx.projectId ? { projectId: ctx.projectId } : {}),
+      }),
+    );
     return {
       ok: false,
       planId: planResolution.planId,
       branch,
       runDir,
       logPath,
-      reason: err instanceof Error ? err.message : String(err),
+      reason,
     };
+  } finally {
+    for (const restore of secretsRestore) {
+      try {
+        restore();
+      } catch {
+        // Restoration is best-effort; the next run's apply will overwrite.
+      }
+    }
   }
 }
 
-function failure(
+async function failure(
   ctx: RunContext,
   result: { output: string; rateLimited?: boolean },
   runDir: string,
   logPath: string,
-): RunTaskOutcome {
+): Promise<RunTaskOutcome> {
+  await Promise.resolve(
+    ctx.events.emit({
+      kind: "run_finished",
+      at: new Date().toISOString(),
+      planId: ctx.planId,
+      runId: ctx.runId,
+      branch: ctx.branch,
+      ok: false,
+      ...(result.rateLimited ? { rateLimited: true } : {}),
+      reason: result.output,
+      logPath,
+      ...(ctx.projectId ? { projectId: ctx.projectId } : {}),
+    }),
+  );
   return {
     ok: false,
     planId: ctx.planId,
@@ -335,19 +410,33 @@ function failure(
   };
 }
 
-function finalize(
+async function finalize(
   ctx: RunContext,
   lastResult: { ok: boolean; output: string; rateLimited?: boolean },
   runDir: string,
   logPath: string,
   phasesRun: Phase[],
-): RunTaskOutcome {
+): Promise<RunTaskOutcome> {
   const tokensTotal = ctx.tokensUsed.reduce(
     (acc, r) => ({
       inputTokens: acc.inputTokens + r.inputTokens,
       outputTokens: acc.outputTokens + r.outputTokens,
     }),
     { inputTokens: 0, outputTokens: 0 },
+  );
+  await Promise.resolve(
+    ctx.events.emit({
+      kind: "run_finished",
+      at: new Date().toISOString(),
+      planId: ctx.planId,
+      runId: ctx.runId,
+      branch: ctx.branch,
+      ok: lastResult.ok,
+      ...(lastResult.rateLimited ? { rateLimited: true } : {}),
+      ...(lastResult.ok ? {} : { reason: lastResult.output }),
+      logPath,
+      ...(ctx.projectId ? { projectId: ctx.projectId } : {}),
+    }),
   );
   if (!lastResult.ok) {
     return {

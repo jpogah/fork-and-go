@@ -93,6 +93,45 @@ export interface StateStoreOptions {
   initial?: OrchestratorState;
 }
 
+// Reference in-memory StateStore. Useful for tests and as a worked
+// example of what a non-FS adapter (e.g. Postgres) must satisfy. The
+// cloud's Postgres adapter follows the same contract: read-modify-write
+// must produce a deep-cloned snapshot, history must trim at HISTORY_LIMIT,
+// and all transitions must be durable on the storage backend before
+// returning to the caller.
+export function createMemoryStateStore(opts: {
+  initial?: OrchestratorState;
+  now?: () => Date;
+} = {}): StateStore {
+  const now = opts.now ?? (() => new Date());
+  let state: OrchestratorState = opts.initial ?? emptyState();
+  return {
+    get() {
+      return clone(state);
+    },
+    update(mutator) {
+      const draft = clone(state);
+      mutator(draft);
+      draft.history = trimHistory(draft.history);
+      state = draft;
+      return clone(state);
+    },
+    pushHistory(entry) {
+      const at = entry.at ?? now().toISOString();
+      const draft = clone(state);
+      draft.history.push({ ...entry, at });
+      draft.history = trimHistory(draft.history);
+      state = draft;
+    },
+    flush() {
+      // No-op; in-memory store has no I/O.
+    },
+    path() {
+      return ":memory:";
+    },
+  };
+}
+
 export function createStateStore(opts: StateStoreOptions): StateStore {
   const stateFile = path.join(opts.dir, "state.json");
   const now = opts.now ?? (() => new Date());

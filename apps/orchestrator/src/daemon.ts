@@ -13,6 +13,20 @@
 //
 // All transitions go through the state store's atomic writer, so a hard
 // kill (SIGKILL) between transitions leaves the state file consistent.
+//
+// Multi-tenancy note: one daemon = one project. The cloud achieves
+// multi-tenancy not by extending this daemon to handle many projects in
+// one tick loop, but by:
+//   - PgBoss (or similar) enqueues jobs across projects.
+//   - Each runner machine pops a job and calls `runTask()` once with the
+//     project's config + secrets + event sink + projectId.
+//   - Long-running merge polling per project happens in N independent
+//     daemon instances (one Fly machine per project) when the project
+//     opts in to autonomous-mode. Most projects only need the on-demand
+//     job worker.
+// This keeps the daemon code single-tenant and lets the cloud's
+// scheduling layer make policy decisions about isolation, budget, and
+// fairness across projects.
 
 import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -32,6 +46,8 @@ import {
   unfreeze as unfreezeOrchestrator,
 } from "@harness/run-budget";
 import type { HarnessConfig } from "@harness/config";
+
+import { noopEventSink, type EventSink } from "./event-bus.ts";
 
 import {
   createBudgetManager,
@@ -156,6 +172,19 @@ export interface DaemonOptions {
   // Branch the daemon returns to before doing the plan-file migration.
   // Defaults to "main" (matches `run_task.sh`'s BASE_BRANCH).
   mainBranch?: string;
+  // Optional structured-event sink. The daemon emits plan_completed /
+  // plan_blocked here; the in-process runner inherits the same sink and
+  // emits run_started / phase_completed / tokens_recorded / run_finished.
+  // OSS default is a no-op; the cloud passes a webhook poster.
+  eventSink?: EventSink;
+  // Optional project identifier stamped onto every event. Cloud sets
+  // this; OSS leaves undefined.
+  projectId?: string;
+  // Optional StateStore implementation. Defaults to the file-backed store
+  // at `<stateDir>/state.json`. The cloud passes a Postgres-backed impl
+  // so daemon state is durable across worker restarts and visible to the
+  // API for dashboards.
+  stateStore?: StateStore;
 }
 
 export interface GitSyncBridge {
@@ -252,6 +281,8 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
   const sleepFn = opts.sleep ?? defaultSleep;
   const mainBranch =
     opts.mainBranch ?? config?.baseBranch ?? "main";
+  const eventSink = opts.eventSink ?? noopEventSink;
+  const projectId = opts.projectId;
   const gitSync: GitSyncBridge = opts.gitSync ?? {
     returnToMain,
     commitAndPushMigration,
@@ -262,7 +293,8 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
     validateGraphOrThrow(activeDir, completedDir);
   }
 
-  const store: StateStore = createStateStore({ dir: stateDir, now });
+  const store: StateStore =
+    opts.stateStore ?? createStateStore({ dir: stateDir, now });
   const invoker: RunInvoker = opts.runInvoker ?? createRunInvoker();
   const detector: MergeDetector =
     opts.mergeDetector ?? createMergeDetector(opts.mergeDetectorOptions);
@@ -965,6 +997,8 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
           config: config!,
           logsDir,
           resume: useResume,
+          ...(opts.eventSink ? { eventSink: opts.eventSink } : {}),
+          ...(projectId !== undefined ? { projectId } : {}),
           // Intentionally no `signal` — /stop is graceful and must not
           // abort the active in-process run.
         });
@@ -1173,6 +1207,16 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
           new Date(result.finishedAt).getTime() -
           new Date(result.startedAt).getTime(),
       });
+      await Promise.resolve(
+        eventSink.emit({
+          kind: "plan_completed",
+          at: now().toISOString(),
+          planId,
+          fromPath: migration.from,
+          toPath: migration.to,
+          ...(projectId ? { projectId } : {}),
+        }),
+      );
     } catch (err) {
       // If the migration fails (e.g., destination already exists, or we
       // can't return to main), surface the failure as `blocked` so the
@@ -1241,6 +1285,15 @@ export async function createDaemon(opts: DaemonOptions): Promise<Daemon> {
       reason,
       exitCode: result.exitCode,
     });
+    await Promise.resolve(
+      eventSink.emit({
+        kind: "plan_blocked",
+        at: now().toISOString(),
+        planId,
+        reason,
+        ...(projectId ? { projectId } : {}),
+      }),
+    );
   }
 
   return daemon;

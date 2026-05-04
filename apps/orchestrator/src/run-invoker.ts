@@ -13,6 +13,8 @@ import path from "node:path";
 import type { AgentRunner } from "@harness/agent-runner";
 import type { HarnessConfig } from "@harness/config";
 
+import type { EventSink } from "./event-bus.ts";
+import type { LogSink } from "./log-sink.ts";
 import { runTask, type Phase, type RunTaskOutcome } from "./runner/index.ts";
 
 export interface InvokeRunOptions {
@@ -36,6 +38,12 @@ export interface InvokeRunOptions {
   dryRun?: boolean;
   now?: () => Date;
   signal?: AbortSignal;
+  // Forwarded into runTask so per-run events flow to the cloud sink.
+  eventSink?: EventSink;
+  projectId?: string;
+  // Forwarded into runTask. Cloud passes an R2 streaming sink; OSS leaves
+  // undefined so runTask falls back to the file-backed default.
+  logSink?: LogSink;
 }
 
 export interface InvokeRunResult {
@@ -91,6 +99,9 @@ export function createRunInvoker(): RunInvoker {
           ...(opts.localOnly !== undefined ? { localOnly: opts.localOnly } : {}),
           ...(opts.skipE2e !== undefined ? { skipE2e: opts.skipE2e } : {}),
           ...(opts.dryRun !== undefined ? { dryRun: opts.dryRun } : {}),
+          ...(opts.eventSink ? { eventSink: opts.eventSink } : {}),
+          ...(opts.projectId !== undefined ? { projectId: opts.projectId } : {}),
+          ...(opts.logSink ? { logSink: opts.logSink } : {}),
         });
       } catch (err) {
         active = null;

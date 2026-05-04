@@ -9,6 +9,7 @@ import type { AgentResult, AgentRunner } from "@harness/agent-runner";
 
 import { runTask } from "./index.ts";
 import { execCmd } from "./git.ts";
+import { createMemoryEventSink } from "../event-bus.ts";
 
 function buildConfig(overrides: Partial<HarnessConfig> = {}): HarnessConfig {
   return HarnessConfigSchema.parse({
@@ -107,6 +108,41 @@ describe("runTask", () => {
         expect(outcome.tokensTotal.inputTokens).toBe(100);
       }
       expect(exec).toHaveBeenCalledTimes(1);
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("emits run_started, tokens_recorded, phase_completed, run_finished to the event sink", async () => {
+    const repoRoot = await makeFixtureRepo();
+    try {
+      await writePlan(repoRoot, "0010", "Events");
+      const exec = vi.fn(async () => buildResult("done"));
+      const review = vi.fn(async () => buildResult("No findings."));
+      const complete = vi.fn(async () => buildResult(""));
+      const runner: AgentRunner = { exec, review, complete };
+      const sink = createMemoryEventSink();
+
+      await runTask({
+        taskRef: "0010",
+        repoRoot,
+        config: buildConfig(),
+        phase: "implement",
+        agentRunner: runner,
+        localOnly: true,
+        eventSink: sink,
+        projectId: "proj_abc",
+      });
+
+      const kinds = sink.events.map((e) => e.kind);
+      expect(kinds).toContain("run_started");
+      expect(kinds).toContain("tokens_recorded");
+      expect(kinds).toContain("phase_completed");
+      expect(kinds).toContain("run_finished");
+      // projectId should be stamped on every event
+      expect(sink.events.every((e) => e.projectId === "proj_abc")).toBe(true);
+      const finished = sink.events.find((e) => e.kind === "run_finished");
+      expect(finished && finished.kind === "run_finished" && finished.ok).toBe(true);
     } finally {
       rmSync(repoRoot, { recursive: true, force: true });
     }

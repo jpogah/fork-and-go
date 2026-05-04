@@ -3,6 +3,7 @@
 // or process.cwd(); loads harness.config.{json,ts}; dispatches.
 //
 // Subcommands:
+//   harness init [--provider <claude|codex>] [--force]
 //   harness run <task-id-or-plan-path> [--phase ...] [--local-only] [--skip-e2e] [--dry-run]
 //   harness daemon start
 //   harness daemon stop | freeze | unfreeze | status
@@ -79,6 +80,7 @@ function usage(): string {
     "harness — repo-agnostic agent harness driven by Claude Agent SDK and Codex SDK.",
     "",
     "Usage:",
+    "  harness init [--provider claude|codex] [--force]",
     "  harness run <task-id-or-plan-path> [options]",
     "  harness daemon <start|stop|freeze|unfreeze|status> [options]",
     "  harness plan <spec-file> [--preview] [--max-new-plans N]",
@@ -232,6 +234,114 @@ async function cmdDaemon(args: ParsedArgs): Promise<number> {
       process.stderr.write(`harness daemon: unknown subcommand ${sub}\n`);
       return 2;
   }
+}
+
+async function cmdInit(args: ParsedArgs): Promise<number> {
+  const fs = await import("node:fs");
+  const repoRoot = repoRootFromFlags(args.flags);
+  const provider =
+    args.flags.provider === "codex" || args.flags.provider === "claude"
+      ? args.flags.provider
+      : "claude";
+  const force = args.flags.force === true;
+
+  const configPath = path.join(repoRoot, "harness.config.json");
+  if (fs.existsSync(configPath) && !force) {
+    process.stderr.write(
+      `harness init: harness.config.json already exists at ${configPath}. Pass --force to overwrite.\n`,
+    );
+    return 1;
+  }
+
+  const config = {
+    agent: { provider, maxReviewPasses: 5 },
+    appPaths: ["src"],
+    baseBranch: "main",
+    devServer: {
+      command: "npm run dev",
+      url: "http://localhost:3000",
+    },
+    e2e: {
+      command: "npm run e2e",
+      artifactDirs: ["playwright-report", "test-results"],
+    },
+  };
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
+  process.stdout.write(`wrote ${path.relative(repoRoot, configPath)}\n`);
+
+  // Sample plan dir + plan file.
+  const planDir = path.join(repoRoot, "docs", "exec-plans", "active");
+  const completedDir = path.join(repoRoot, "docs", "exec-plans", "completed");
+  fs.mkdirSync(planDir, { recursive: true });
+  fs.mkdirSync(completedDir, { recursive: true });
+  // .gitkeep so the empty completed/ dir survives a git commit.
+  const gitkeep = path.join(completedDir, ".gitkeep");
+  if (!fs.existsSync(gitkeep)) fs.writeFileSync(gitkeep, "", "utf8");
+
+  const samplePlanPath = path.join(planDir, "0001-example.md");
+  if (!fs.existsSync(samplePlanPath) || force) {
+    const samplePlan = [
+      "---",
+      'id: "0001"',
+      'title: "Example plan"',
+      'phase: "Harness"',
+      'status: "active"',
+      "depends_on: []",
+      "estimated_passes: 1",
+      "acceptance_tags: []",
+      "---",
+      "",
+      "# 0001 Example plan",
+      "",
+      "## Goal",
+      "",
+      "Replace this with a one-paragraph statement of what should be true",
+      "after the plan ships. The agent reads this as the source of truth.",
+      "",
+      "## Why Now",
+      "",
+      "Why this plan, why now. Keep it short.",
+      "",
+      "## Scope",
+      "",
+      "- Bullet the work that's in scope.",
+      "- One bullet per concern.",
+      "",
+      "## Out Of Scope",
+      "",
+      "- Bullet the things explicitly not in this plan.",
+      "",
+      "## Implement",
+      "",
+      "Step-by-step instructions for the implementer agent. Be concrete.",
+      "",
+      "## Validation",
+      "",
+      "- How a human (or the review agent) confirms this shipped correctly.",
+      "",
+      "## Open Questions",
+      "",
+      "- (none)",
+      "",
+      "## Decision Log",
+      "",
+      "- (none)",
+      "",
+    ].join("\n");
+    fs.writeFileSync(samplePlanPath, samplePlan, "utf8");
+    process.stdout.write(
+      `wrote ${path.relative(repoRoot, samplePlanPath)}\n`,
+    );
+  }
+
+  process.stdout.write(
+    "\nNext steps:\n" +
+      "  1. Edit harness.config.json — at minimum, confirm appPaths, devServer, and e2e match your repo.\n" +
+      "  2. Edit docs/exec-plans/active/0001-example.md to describe a real first plan.\n" +
+      "  3. Commit both files.\n" +
+      "  4. From the harness repo: HARNESS_TARGET_REPO=<this-repo> npm run harness -- run 0001 --phase implement --local-only\n",
+  );
+  return 0;
 }
 
 async function cmdPlan(args: ParsedArgs): Promise<number> {
@@ -400,6 +510,8 @@ async function cmdFidelity(args: ParsedArgs): Promise<number> {
 async function main(): Promise<number> {
   const args = parseArgs(process.argv);
   switch (args.command) {
+    case "init":
+      return await cmdInit(args);
     case "run":
       return await cmdRun(args);
     case "daemon":

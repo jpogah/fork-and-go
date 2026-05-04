@@ -11,6 +11,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  createMemoryStateStore,
   createStateStore,
   emptyState,
   readStateFile,
@@ -102,5 +103,42 @@ describe("state store", () => {
     const clone = JSON.parse(JSON.stringify(emptyState()));
     expect(clone.version).toBe(STATE_FILE_VERSION);
     expect(clone.active).toBeNull();
+  });
+});
+
+describe("memory state store", () => {
+  it("satisfies the StateStore contract used by the daemon", () => {
+    const store = createMemoryStateStore();
+    expect(store.path()).toBe(":memory:");
+    expect(store.get().mode).toBe("paused");
+
+    store.update((draft) => {
+      draft.mode = "running";
+      draft.active = {
+        planId: "0001",
+        branch: "task/0001",
+        startedAt: "2026-01-01T00:00:00Z",
+        logPath: "/tmp/log",
+        rateLimitRetries: 0,
+      };
+    });
+    expect(store.get().mode).toBe("running");
+
+    store.pushHistory({ planId: "0001", event: "plan_started" });
+    expect(store.get().history).toHaveLength(1);
+
+    // Draft mutations don't leak — confirms deep-clone-on-read.
+    const snap = store.get();
+    snap.mode = "paused";
+    expect(store.get().mode).toBe("running");
+  });
+
+  it("trims history at HISTORY_LIMIT", () => {
+    const store = createMemoryStateStore();
+    for (let i = 0; i < HISTORY_LIMIT + 25; i += 1) {
+      store.pushHistory({ planId: String(i), event: "plan_started" });
+    }
+    expect(store.get().history).toHaveLength(HISTORY_LIMIT);
+    expect(store.get().history[0]!.planId).toBe(String(25));
   });
 });
