@@ -18,3 +18,11 @@ export {
 } from "./load.ts";
 
 export { resolvePaths, type ResolvedPaths } from "./paths.ts";
+
+export {
+  composeSecretsProviders,
+  createEnvSecretsProvider,
+  createMemorySecretsProvider,
+  type SecretName,
+  type SecretsProvider,
+} from "./secrets.ts";

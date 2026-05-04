@@ -41,11 +41,11 @@ export interface PhaseResult {
   rateLimited?: boolean;
 }
 
-function recordTokens(
+async function recordTokens(
   ctx: RunContext,
   phase: string,
   result: AgentResult,
-): void {
+): Promise<void> {
   const record: TokensRecord = {
     phase,
     model: "agent",
@@ -65,6 +65,18 @@ function recordTokens(
   } catch (err) {
     ctx.log(`tokens-used write failed: ${err instanceof Error ? err.message : err}`);
   }
+  await Promise.resolve(
+    ctx.events.emit({
+      kind: "tokens_recorded",
+      at: record.at,
+      planId: ctx.planId,
+      runId: ctx.runId,
+      phase,
+      tokens: result.tokensUsed,
+      model: record.model,
+      ...(ctx.projectId ? { projectId: ctx.projectId } : {}),
+    }),
+  );
 }
 
 async function callAgent(
@@ -83,14 +95,28 @@ async function callAgent(
     cwd: ctx.repoRoot,
     onEvent: (e) => ctx.log(`[${phase}] ${e.kind}: ${e.text}`),
   });
-  recordTokens(ctx, phase, result);
+  await recordTokens(ctx, phase, result);
+  const phaseResult: PhaseResult = result.rateLimitHit
+    ? { ok: false, output: result.message, rateLimited: true }
+    : { ok: result.ok, output: result.message };
   if (result.rateLimitHit) {
     ctx.log(
       `[${phase}] rate limit reported by agent: ${result.rateLimitHit.reason}`,
     );
-    return { ok: false, output: result.message, rateLimited: true };
   }
-  return { ok: result.ok, output: result.message };
+  await Promise.resolve(
+    ctx.events.emit({
+      kind: "phase_completed",
+      at: new Date().toISOString(),
+      planId: ctx.planId,
+      runId: ctx.runId,
+      phase,
+      ok: phaseResult.ok,
+      ...(phaseResult.rateLimited ? { rateLimited: true } : {}),
+      ...(ctx.projectId ? { projectId: ctx.projectId } : {}),
+    }),
+  );
+  return phaseResult;
 }
 
 export async function runImplement(ctx: RunContext): Promise<PhaseResult> {

@@ -2,7 +2,10 @@
 // scripts/run_task.sh and run_task_loop.sh exposed via spawn() exit codes.
 
 import type { AgentRunner } from "@harness/agent-runner";
-import type { HarnessConfig } from "@harness/config";
+import type { HarnessConfig, SecretsProvider } from "@harness/config";
+
+import type { EventSink } from "../event-bus.ts";
+import type { LogSink } from "../log-sink.ts";
 
 export type Phase =
   | "all"
@@ -35,6 +38,22 @@ export interface RunTaskOptions {
   agentRunner?: AgentRunner;
   // Optional logger; defaults to writing to .orchestrator/logs/<plan>.log
   logger?: (line: string) => void;
+  // Optional structured-event sink. Defaults to no-op. The cloud passes a
+  // webhook poster that pushes events to its API for tenant-side fan-out.
+  eventSink?: EventSink;
+  // Optional project identifier stamped onto every event the run emits.
+  // The cloud sets this; OSS leaves it undefined.
+  projectId?: string;
+  // Optional log sink. Defaults to a file-backed sink at
+  // `<stateDir>/logs/<plan>-<runId>.log`. The cloud passes an R2-streaming
+  // sink that flushes batches to object storage as the run progresses.
+  logSink?: LogSink;
+  // Optional secrets provider. The runner queries it for ANTHROPIC_API_KEY
+  // / OPENAI_API_KEY / GH_TOKEN and sets them in the child env before the
+  // agent SDK is invoked. Defaults to reading process.env, which preserves
+  // OSS behavior. The cloud passes a vault-backed provider that decrypts
+  // the project's BYO keys per-run.
+  secrets?: SecretsProvider;
 }
 
 export type RunTaskOutcome =
@@ -84,6 +103,9 @@ export interface RunContext {
   // Bound utilities.
   runner: AgentRunner;
   log: (line: string) => void;
+  logSink: LogSink;
+  events: EventSink;
+  projectId?: string;
   // Per-phase token-usage records. Append-only.
   tokensUsed: TokensRecord[];
 }
