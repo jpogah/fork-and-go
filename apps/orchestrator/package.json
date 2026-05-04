@@ -4,6 +4,15 @@
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./runner": "./src/runner/index.ts",
+    "./event-bus": "./src/event-bus.ts",
+    "./log-sink": "./src/log-sink.ts",
+    "./state": "./src/state.ts",
+    "./daemon": "./src/daemon.ts",
+    "./run-invoker": "./src/run-invoker.ts"
+  },
   "bin": {
     "harness": "./src/cli.ts"
   },
